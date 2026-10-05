@@ -1,0 +1,6 @@
+.env
+*.env
+.state.json
+*.log
+__pycache__/
+lookups/entra_known_apps.csv
