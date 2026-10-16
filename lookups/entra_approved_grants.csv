@@ -1,0 +1,4 @@
+client_sp_id,resource_sp_id,grant_type,permission,consent_type
+7548fb4d-fb96-4ebe-9499-09c6d1bb9aa0,6d1c1584-ac95-4b9d-bd35-4661d9d321f0,application,AuditLog.Read.All,not_applicable
+7548fb4d-fb96-4ebe-9499-09c6d1bb9aa0,6d1c1584-ac95-4b9d-bd35-4661d9d321f0,application,Directory.Read.All,not_applicable
+7548fb4d-fb96-4ebe-9499-09c6d1bb9aa0,6d1c1584-ac95-4b9d-bd35-4661d9d321f0,delegated,User.Read,AllPrincipals

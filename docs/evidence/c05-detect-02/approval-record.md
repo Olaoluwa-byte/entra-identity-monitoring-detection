@@ -1,0 +1,11 @@
+# C05-DETECT-02 revision 1 approval binding
+
+Canonical approved brief: https://app.notion.com/3e50cbbc35ef8197b8eec917d076b285 (section C05-DETECT-02 revision 1). Approval: user message approve, October 16 2026 14:13 EDT. User confirmed AllPrincipals delegated User.Read intentional at 14:07 EDT. User requested agent takeover at 15:04 EDT. This record is reconstructed from the approved Notion brief and chat; it is not a separately preserved pre-execution brief.
+
+Base e1f33d34deb9ec9cdba5a71d29ce8405ede5bdca. Task branch feat/c05-permission-grants. Authorized: source SPL, explicit baseline CSV, documentation, focused fixture/evidence helpers, new D2 stanza, UbuntuDesk lab deployment, private backup, tests and local commits. Preserve unrelated work. Actor is context rather than a baseline authorization dimension. Match client/resource/grant type/individual permission/consent. Keep nested properties associated; preserve malformed events; split delegated scopes; do not collapse distinct grants by correlationId.
+
+Acceptance: three approved tuples silent; new client/resource/permission, incorrect grant type or consent produce findings; test shared correlation distinct grants, multiple scopes, null/missing fields, secondary objects, empty results and malformed handling. Real scheduled positive/negative and repeated/new-key tests use isolated synthetic resources and a separate baseline. Observe one normal live run. Disable temporary schedules. Capture exact commands, results, SIDs, hashes, invariants and limitations for independent review and user acceptance. Required failures block readiness.
+
+Policy: every 15 minutes, -24h event bounds, now latest, -35m index lookback, local tracking, result-count greater than zero, per-result 24-hour suppression on stable event/permission key, outbound email/script/webhook off. Prefer targeted reload; restart allowed only if needed followed by service and D1/C09 recovery checks.
+
+Security: personal lab only, no credentials or raw license payload in evidence; private root-only rollback copy. Restore only affected stanzas/files while preserving unrelated work and suppression history. No tenant permissions, app creation, credentials, Premium activation, ingestion changes, D1/C09 logic or TLS changes. No push/PR/merge/tag/publication authorized by this brief. Overall C05 remains In Progress.

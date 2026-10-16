@@ -1,0 +1,4 @@
+client_sp_id,resource_sp_id,grant_type,permission,consent_type
+fixture-client,fixture-resource,application,AuditLog.Read.All,not_applicable
+fixture-client,fixture-resource,application,Directory.Read.All,not_applicable
+fixture-client,fixture-resource,delegated,User.Read,AllPrincipals

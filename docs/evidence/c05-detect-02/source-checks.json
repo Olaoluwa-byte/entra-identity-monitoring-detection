@@ -1,0 +1,19 @@
+{
+  "command": [
+    "git",
+    "--no-pager",
+    "diff",
+    "--cached",
+    "--check",
+    "--",
+    ".",
+    ":(exclude)docs/evidence/c05-detect-02"
+  ],
+  "returncode": 0,
+  "stdout": "",
+  "stderr": "",
+  "evidence_note": "Captured CSV uses CRLF and source.diff includes standard blank context lines. These evidence bytes are preserved; whitespace validation applies to implementation files.",
+  "python_compile": "python3 -m py_compile tools/c05_d2_*.py succeeded",
+  "base": "e1f33d34deb9ec9cdba5a71d29ce8405ede5bdca",
+  "branch": "feat/c05-permission-grants"
+}
