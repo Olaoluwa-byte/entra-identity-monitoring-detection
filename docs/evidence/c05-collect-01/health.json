@@ -1,0 +1,191 @@
+{
+  "epoch": 1792181074.176179,
+  "invariants": {
+    "/opt/splunk/etc/apps/SplunkDeploymentServerConfig/default/savedsearches.conf": true,
+    "/opt/splunk/etc/apps/audit_trail/default/savedsearches.conf": true,
+    "/opt/splunk/etc/apps/c05_validation_20261016/local/savedsearches.conf": true,
+    "/opt/splunk/etc/apps/c09_detections/local/savedsearches.conf": true,
+    "/opt/splunk/etc/apps/c09_detections/metadata/default.meta": true,
+    "/opt/splunk/etc/apps/search/default/savedsearches.conf": true,
+    "/opt/splunk/etc/apps/search/local/savedsearches.conf": true,
+    "/opt/splunk/etc/apps/search/lookups/c05d2_fixture_baseline.csv": true,
+    "/opt/splunk/etc/apps/search/lookups/c05d2_policy.csv": true,
+    "/opt/splunk/etc/apps/search/lookups/entra_approved_consents.csv": true,
+    "/opt/splunk/etc/apps/search/lookups/entra_approved_grants.csv": true,
+    "/opt/splunk/etc/apps/search/lookups/entra_known_apps.csv": true,
+    "/opt/splunk/etc/apps/search/lookups/geo_attr_countries.csv": true,
+    "/opt/splunk/etc/apps/search/lookups/geo_attr_us_states.csv": true,
+    "/opt/splunk/etc/apps/splunk-rolling-upgrade/default/savedsearches.conf": true,
+    "/opt/splunk/etc/apps/splunk_archiver/default/savedsearches.conf": true,
+    "/opt/splunk/etc/apps/splunk_instrumentation/default/savedsearches.conf": true,
+    "/opt/splunk/etc/apps/splunk_monitoring_console/default/savedsearches.conf": true,
+    "/opt/splunk/etc/apps/splunk_rapid_diag/default/savedsearches.conf": true
+  },
+  "unit_invariants": {
+    "service_unit_sha256": true,
+    "timer_unit_sha256": true
+  },
+  "output": {
+    "bytes": 72897,
+    "sha256": "55a20653ffec9a57e20c587e35aea2a54963005ec91d9fd4520471546cd5a7f9",
+    "checkpoint": "2026-10-05T01:36:16.511542Z",
+    "version": 2,
+    "seen_count": 46
+  },
+  "splunk_service": {
+    "command": [
+      "systemctl",
+      "is-active",
+      "Splunkd"
+    ],
+    "returncode": 0,
+    "stdout": "active\n",
+    "stderr": ""
+  },
+  "collector_service": {
+    "command": [
+      "systemctl",
+      "--no-pager",
+      "show",
+      "entra-pull.service",
+      "-p",
+      "Result",
+      "-p",
+      "ExecMainStatus"
+    ],
+    "returncode": 0,
+    "stdout": "Result=success\nExecMainStatus=0\n",
+    "stderr": ""
+  },
+  "timer": {
+    "command": [
+      "systemctl",
+      "--no-pager",
+      "show",
+      "entra-pull.timer",
+      "-p",
+      "ActiveState",
+      "-p",
+      "UnitFileState"
+    ],
+    "returncode": 0,
+    "stdout": "ActiveState=active\nUnitFileState=enabled\n",
+    "stderr": ""
+  },
+  "web_status": 200,
+  "scheduler": {
+    "command": [
+      "sudo",
+      "-n",
+      "-u",
+      "splunk",
+      "/opt/splunk/bin/splunk",
+      "search",
+      "index=_internal sourcetype=scheduler earliest=-30m (savedsearch_name=\"ENTRA - *\" OR app=c09_detections) | stats latest(status) AS latest_status latest(_time) AS latest_run count AS runs BY savedsearch_name | sort savedsearch_name",
+      "-output",
+      "csv",
+      "-maxout",
+      "0"
+    ],
+    "returncode": 0,
+    "stdout": "\"savedsearch_name\",\"latest_status\",\"latest_run\",runs\n\"D1_password_guessing\",success,\"1792180801.287\",6\n\"D2_password_spraying\",success,\"1792180801.251\",6\n\"D3a_multi_endpoint_auth\",success,\"1792180802.071\",3\n\"D3b_concurrent_sessions\",success,\"1792180802.034\",6\n\"D4_unauth_game_join\",success,\"1792180801.170\",6\n\"D5_unauth_master_action\",success,\"1792180802.050\",6\n\"D6_lobby_creation_burst\",success,\"1792181041.138\",30\n\"ENTRA - App Credential Added Outside Baseline\",success,\"1792180802.112\",2\n\"ENTRA - Permission Grant Outside Baseline\",success,\"1792180802.269\",2\n",
+    "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+    "rows": [
+      {
+        "savedsearch_name": "D1_password_guessing",
+        "latest_status": "success",
+        "latest_run": "1792180801.287",
+        "runs": "6"
+      },
+      {
+        "savedsearch_name": "D2_password_spraying",
+        "latest_status": "success",
+        "latest_run": "1792180801.251",
+        "runs": "6"
+      },
+      {
+        "savedsearch_name": "D3a_multi_endpoint_auth",
+        "latest_status": "success",
+        "latest_run": "1792180802.071",
+        "runs": "3"
+      },
+      {
+        "savedsearch_name": "D3b_concurrent_sessions",
+        "latest_status": "success",
+        "latest_run": "1792180802.034",
+        "runs": "6"
+      },
+      {
+        "savedsearch_name": "D4_unauth_game_join",
+        "latest_status": "success",
+        "latest_run": "1792180801.170",
+        "runs": "6"
+      },
+      {
+        "savedsearch_name": "D5_unauth_master_action",
+        "latest_status": "success",
+        "latest_run": "1792180802.050",
+        "runs": "6"
+      },
+      {
+        "savedsearch_name": "D6_lobby_creation_burst",
+        "latest_status": "success",
+        "latest_run": "1792181041.138",
+        "runs": "30"
+      },
+      {
+        "savedsearch_name": "ENTRA - App Credential Added Outside Baseline",
+        "latest_status": "success",
+        "latest_run": "1792180802.112",
+        "runs": "2"
+      },
+      {
+        "savedsearch_name": "ENTRA - Permission Grant Outside Baseline",
+        "latest_status": "success",
+        "latest_run": "1792180802.269",
+        "runs": "2"
+      }
+    ]
+  },
+  "ingestion": {
+    "command": [
+      "sudo",
+      "-n",
+      "-u",
+      "splunk",
+      "/opt/splunk/bin/splunk",
+      "search",
+      "index=entra_id earliest=0 | stats count latest(_time) AS latest_event latest(_indextime) AS latest_index BY sourcetype",
+      "-output",
+      "csv",
+      "-maxout",
+      "0"
+    ],
+    "returncode": 0,
+    "stdout": "sourcetype,count,\"latest_event\",\"latest_index\"\n\"entra:audit\",46,\"1791164176.511542\",1791164501\n",
+    "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+    "rows": [
+      {
+        "sourcetype": "entra:audit",
+        "count": "46",
+        "latest_event": "1791164176.511542",
+        "latest_index": "1791164501"
+      }
+    ]
+  },
+  "config_check": {
+    "command": [
+      "sudo",
+      "-n",
+      "-u",
+      "splunk",
+      "/opt/splunk/bin/splunk",
+      "btool",
+      "check"
+    ],
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "source_live_match": true
+}
