@@ -1,0 +1,13 @@
+{
+  "task": "C05-COLLECT-01 revision 1",
+  "base": "257b494e5dd85a780ce578993b49b25183cf08a7",
+  "branch": "fix/c05-audit-collector",
+  "ubuntu_tests_passed": 23,
+  "py_compile": true,
+  "diff_check": true,
+  "deployment": "pending sudo refresh",
+  "independent_review": "pending",
+  "live_checkout": "unchanged",
+  "brief_provenance": "Notion brief recorded before scratch drafting; exported after scratch tests and before isolated checkout edits",
+  "packaging_note": "Initial documentation packaging command had quoting SyntaxError; corrected before final candidate commit"
+}

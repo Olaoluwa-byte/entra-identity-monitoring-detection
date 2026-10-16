@@ -1,0 +1,10 @@
+{
+  "entra_pull.py": "1d82b23a342d2d44a0af4d05d60537ef48d33ff78799dea85714d5c5c01d1655",
+  "tests/test_collector.py": "31016b898ff69c624a1736bc93a12cad98b81c56d5b26c6a7f4955fc2bd9ff23",
+  "README.md": "333138905fe646bc1afde2ff01158ca18316be1cf5b5f2ab1593c2370b2f0293",
+  "docs/c05-collect-01-validation.md": "c24fac60f4196948c782901f12e1f6b4414baec2fa6152e053d034c0dc956a2e",
+  "docs/evidence/c05-collect-01/approved-brief.md": "2ccf35b254a803231c9190c40b48cbe10bf71e15d72b36aa4eb090470a9063d4",
+  "docs/evidence/c05-collect-01/offline-tests.txt": "74c35d132f3eb9f7fe9bd999a97e7c173fe3dd41041eb64bdb99fe2c84f2295a",
+  "docs/evidence/c05-collect-01/source.diff": "e54151efb4ec34ed24ab0e3e869cf3cb6b598378a1656c79d98b8d1642db4e6c",
+  "docs/evidence/c05-collect-01/status.json": "51f1de22c73107ae96dd42f65dff1910d5c6b41c5841bd4698280d8ab2a17c2d"
+}
