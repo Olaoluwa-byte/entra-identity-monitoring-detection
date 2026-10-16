@@ -1,0 +1,6 @@
+{
+  "epoch": 1792171396.3399642,
+  "before": "suite,correlationId\nsequence,c05-A\nmulti,c05-M1\nmulti,c05-M2\n",
+  "after": "suite,correlationId\nsequence,c05-A\nmulti,c05-M1\nmulti,c05-M2\nsequence,c05-B\n",
+  "test_conf_sha256": "8fe34c9d279bc706c0b85e27302b1b82d21551f849e50f8ef21a0ffa33e916a6"
+}

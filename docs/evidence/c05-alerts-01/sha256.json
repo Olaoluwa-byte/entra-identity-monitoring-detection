@@ -1,0 +1,31 @@
+{
+  "algorithm": "sha256",
+  "files": {
+    "README.md": "cc1347cc44f8efa09af76219243e14fb08c5a6337a9b4fe6900395a385527f25",
+    "detections/savedsearches.conf": "fa7023e8705200cda7756943ffd8f9653f5178356b32d45fc3d84844e6622b90",
+    "docs/c05-alerts-01-validation.md": "de0de5c30ffac687a78380f35e851b08e746b99f044f342cff92a0876c349014",
+    "docs/evidence/c05-alerts-01/acceptance.json": "6619e7dfc736e49841d1f0032b9e614378ac840db4e8b55f6d2727cbe7dfb124",
+    "docs/evidence/c05-alerts-01/approved-brief.md": "74168ee0b31e9a1325cef32b6218819ad689b49cb8500a39ac16538ef683cdfb",
+    "docs/evidence/c05-alerts-01/before.json": "9b76a411043b536392943f3c2585fe51bc1016409059bff88b77c3fe1c080c70",
+    "docs/evidence/c05-alerts-01/cleanup.json": "b0c6a23ac23f0bb605ca5e1aeee174bf7c9ccf5af1687465c20fd1e726a1b56c",
+    "docs/evidence/c05-alerts-01/install.json": "aee847006e4867b9420b984deca0c98eae967d3acb03b2548e4a5ee1c04b2751",
+    "docs/evidence/c05-alerts-01/pipeline-auth-attempt.json": "8b2e1b8783529fa8f7db64b092c0343961018c3ab0c75e7fae5bab2b8a0c4501",
+    "docs/evidence/c05-alerts-01/pipeline.json": "ce09d16daa40e0572c2ce36b2ac05b2aedc754dfc426bbbf6c5ebdba4d5b6ba4",
+    "docs/evidence/c05-alerts-01/policy-added-B.json": "9fb4aea8b53ee2dfc827b08849e787803204467d4703482946653329163e8cdd",
+    "docs/evidence/c05-alerts-01/policy-confirmed-B.json": "7c39c3cf14f2e17cd5f14bcc5284b01ffb2840499483fb5e7db72cd9e15703fb",
+    "docs/evidence/c05-alerts-01/policy-new-id-change.json": "5a87ae750035436997bc586c43e2b01c21d81b84a23cea71eb9ebe319abbf6be",
+    "docs/evidence/c05-alerts-01/policy-repeated-A.json": "d1b014ab5debec09218bc6d212ad1626ace99939ea71ada93dfd26b576dfdcb4",
+    "docs/evidence/c05-alerts-01/post-restart.json": "c297793029af527aed03e4f71844869207973e32202799721d87a652919ec399",
+    "docs/evidence/c05-alerts-01/reload.json": "ffa8dbd57a14fb885524c45ce1b57664ffac5cd4e5d4018efc50ad5eef38efe8",
+    "docs/evidence/c05-alerts-01/savedsearches.diff": "5e10807ec64d42f7b496ff3d4f34fd3454da2f4021f12079bf188d86ea3ba012",
+    "docs/evidence/c05-alerts-01/source-binding.json": "86f387bd61e707bd811aaec300bc5fa78d6cc325129552598bb8598a19c4934a",
+    "tools/c05_alert_validation.py": "251ba6cc8528a97b6a66dc190777fb0853e95e2cce140208cc90892ade1c86a5",
+    "tools/c05_capture_before.py": "1526ce4ed85bba18c7bd47ee169248a48c26f8b975205d74c89505aeb8248281",
+    "tools/c05_capture_policy.py": "4bfe634c56f136e55660d355c3f160bf779ef248764b28fa9a1a25ad17629e17",
+    "tools/c05_disable_tests.py": "6b9365ac13b222db74b83c07575f6fe3016499b9f843dec9585f606b067c7b6f",
+    "tools/c05_finalize.py": "b4ebb2f163134e0e3fd32efa74726b1ea9ce7a7a6c6948be5daf1ba9c9051907",
+    "tools/c05_install.py": "c4c1caedb73ad9adc3a0585e3a2d382fcf7ea71222a89cf2b43dd0eaae8ee14e",
+    "tools/c05_package.py": "78a5ed0097a6778458d53ccb2ac89eabee23a1738b738195ccf673037d251a98",
+    "tools/c05_test_pipeline.py": "9956b17a87ffce1ea8fe9344f768468b9f7d89a44e283bc2c5fab6a7b9baf457"
+  }
+}

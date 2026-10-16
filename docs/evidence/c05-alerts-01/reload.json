@@ -1,0 +1,63 @@
+{
+  "apps_reload": {
+    "command": [
+      "sudo",
+      "-n",
+      "-u",
+      "splunk",
+      "/opt/splunk/bin/splunk",
+      "search",
+      "| rest /services/apps/local/_reload | table title",
+      "-output",
+      "csv"
+    ],
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+    "rows": []
+  },
+  "searches_reload": {
+    "command": [
+      "sudo",
+      "-n",
+      "-u",
+      "splunk",
+      "/opt/splunk/bin/splunk",
+      "search",
+      "| rest /servicesNS/-/-/saved/searches/_reload | table title",
+      "-output",
+      "csv"
+    ],
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+    "rows": []
+  },
+  "effective": {
+    "command": [
+      "sudo",
+      "-n",
+      "-u",
+      "splunk",
+      "/opt/splunk/bin/splunk",
+      "search",
+      "| rest /servicesNS/-/-/saved/searches | search title=\"C05V_*\" OR title=\"ENTRA - App Credential Added Outside Baseline\" | table title counttype relation quantity alert.digest_mode is_scheduled cron_schedule",
+      "-output",
+      "csv"
+    ],
+    "returncode": 0,
+    "stdout": "title,counttype,relation,quantity,\"alert.digest_mode\",\"is_scheduled\",\"cron_schedule\"\n\"ENTRA - App Credential Added Outside Baseline\",,,,1,1,\"*/15 * * * *\"\n",
+    "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+    "rows": [
+      {
+        "title": "ENTRA - App Credential Added Outside Baseline",
+        "counttype": "",
+        "relation": "",
+        "quantity": "",
+        "alert.digest_mode": "1",
+        "is_scheduled": "1",
+        "cron_schedule": "*/15 * * * *"
+      }
+    ]
+  }
+}
