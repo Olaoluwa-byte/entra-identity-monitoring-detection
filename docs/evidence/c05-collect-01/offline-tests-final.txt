@@ -1,0 +1,29 @@
+test_429_retry_after (test_collector.CollectorTests.test_429_retry_after) ... ok
+test_atomic_replace_failure_preserves_old_state (test_collector.CollectorTests.test_atomic_replace_failure_preserves_old_state) ... ok
+test_audit_only_and_repeat_dedup (test_collector.CollectorTests.test_audit_only_and_repeat_dedup) ... ok
+test_bad_nextlink_no_credential_forward (test_collector.CollectorTests.test_bad_nextlink_no_credential_forward) ... ok
+test_complete_unterminated_output_fails_closed (test_collector.CollectorTests.test_complete_unterminated_output_fails_closed) ... ok
+test_conflicting_duplicate (test_collector.CollectorTests.test_conflicting_duplicate) ... ok
+test_empty_and_legacy_state_preserved (test_collector.CollectorTests.test_empty_and_legacy_state_preserved) ... ok
+test_equal_timestamps_distinct_ids (test_collector.CollectorTests.test_equal_timestamps_distinct_ids) ... ok
+test_future_checkpoint_fails_closed (test_collector.CollectorTests.test_future_checkpoint_fails_closed) ... ok
+test_http_failures_do_not_advance (test_collector.CollectorTests.test_http_failures_do_not_advance) ... ok
+test_invalid_event (test_collector.CollectorTests.test_invalid_event) ... ok
+test_invalid_response (test_collector.CollectorTests.test_invalid_response) ... ok
+test_late_record_and_overlap (test_collector.CollectorTests.test_late_record_and_overlap) ... ok
+test_later_page_failure_no_output_or_state (test_collector.CollectorTests.test_later_page_failure_no_output_or_state) ... ok
+test_lock_excludes_overlap (test_collector.CollectorTests.test_lock_excludes_overlap) ... ok
+test_long_retry_not_shortened (test_collector.CollectorTests.test_long_retry_not_shortened) ... ok
+test_main_nonzero_and_sanitized (test_collector.CollectorTests.test_main_nonzero_and_sanitized) ... ok
+test_output_before_checkpoint_recovered (test_collector.CollectorTests.test_output_before_checkpoint_recovered) ... ok
+test_paginate_and_page_duplicate (test_collector.CollectorTests.test_paginate_and_page_duplicate) ... ok
+test_pagination_cycle (test_collector.CollectorTests.test_pagination_cycle) ... ok
+test_partial_existing_output_fails_closed (test_collector.CollectorTests.test_partial_existing_output_fails_closed) ... ok
+test_retry_exhaustion (test_collector.CollectorTests.test_retry_exhaustion) ... ok
+test_submicrosecond_checkpoint_normalization_does_not_advance (test_collector.CollectorTests.test_submicrosecond_checkpoint_normalization_does_not_advance) ... ok
+test_transient_network_and_503 (test_collector.CollectorTests.test_transient_network_and_503) ... ok
+
+----------------------------------------------------------------------
+Ran 24 tests in 0.266s
+
+OK

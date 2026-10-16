@@ -1,0 +1,39 @@
+{
+  "task": "C05-COLLECT-01 revision 1",
+  "epoch": 1792181132.029407,
+  "checks": {
+    "ubuntu_23_tests_passed": true,
+    "syntax_checked": true,
+    "source_whitespace_checked": true,
+    "backup_root_only": true,
+    "live_candidate_matches": true,
+    "two_service_runs_success": true,
+    "two_audit_summaries": true,
+    "empty_live_results_disclosed": true,
+    "timer_restored": true,
+    "timer_enabled": true,
+    "config_invariance": true,
+    "unit_invariance": true,
+    "existing_audit_output_unchanged": true,
+    "audit_checkpoint_preserved": false,
+    "state_migrated": true,
+    "splunk_active": true,
+    "web_ok": true,
+    "btool_ok": true,
+    "scheduler_query_ok": true,
+    "nine_schedules_recent_success": true,
+    "retained_audit_search_ok": true
+  },
+  "all_passed": false,
+  "passed": 20,
+  "total": 21,
+  "limits": [
+    "Two successful live Graph calls returned zero records; no fresh tenant ingestion or live duplicate recovery was demonstrated.",
+    "Recent scheduler health covers the last 30 minutes; D1/D2 and most C09 latest runs precede deployment, D6 is post-deployment. Configuration invariance and service health checked after deployment.",
+    "No normal timer cadence was awaited; two manual oneshot runs used the unchanged service, and timer active/enabled was restored.",
+    "External copytruncate rotation and partial-record crashes retain documented recovery limits; no exactly-once guarantee.",
+    "Finite 24-hour overlap cannot cover all source lateness or retention gaps."
+  ],
+  "independent_review": "pending",
+  "publication": "local only"
+}

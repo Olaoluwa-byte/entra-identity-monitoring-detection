@@ -85,4 +85,4 @@ Detection 2 compares successful Entra app-role and delegated grants with an expl
 
 ## Free-tier collector hardening (C05-COLLECT-01)
 
-Candidate: audit-only collection with 24-hour overlap, event-ID deduplication, bounded retries and durable checkpoints. Premium sign-in work is deferred. See docs/c05-collect-01-validation.md for tests and recovery limits. Live deployment and independent review pending.
+Audit-only collection with 24-hour overlap, event-ID deduplication, bounded retries and durable checkpoints. Premium sign-in work is deferred. See docs/c05-collect-01-validation.md for tests and recovery limits. Deployed and validated; independent review pending. Live checks returned zero new records and do not establish fresh end-to-end ingestion.

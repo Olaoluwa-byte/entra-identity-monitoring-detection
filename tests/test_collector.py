@@ -145,6 +145,20 @@ class CollectorTests(unittest.TestCase):
     def test_future_checkpoint_fails_closed(self):
         (self.out/'.state.json').write_text(json.dumps({'directoryaudits':'2027-01-01T00:00:00Z'}))
         with self.assertRaises(c.CollectionError):self.run_collect(Response({'value':[]}))
+    def test_submicrosecond_checkpoint_normalization_does_not_advance(self):
+        original = '2026-10-16T18:00:00.1234567Z'
+        (self.out/'.state.json').write_text(json.dumps({'directoryaudits': original}))
+        result,q = self.run_collect(Response({'value':[]}))
+        after = json.loads((self.out/'.state.json').read_text())['directoryaudits']
+        from decimal import Decimal
+        before_fraction = Decimal('0.' + original.split('.')[1].rstrip('Z'))
+        after_fraction = Decimal('0.' + after.split('.')[1].rstrip('Z'))
+        self.assertEqual(original.split('.')[0], after.split('.')[0])
+        self.assertGreaterEqual(before_fraction - after_fraction, Decimal('0'))
+        self.assertLess(before_fraction - after_fraction, Decimal('0.000001'))
+        self.assertEqual(result['written'], 0)
+        self.assertIn(' ge ', q.calls[0][1]['params']['$filter'])
+
     def test_main_nonzero_and_sanitized(self):
         with patch.object(c,'get_token',side_effect=RuntimeError('secret payload')),patch('sys.stderr') as err:
             self.assertEqual(c.main(),1)
