@@ -1,0 +1,17 @@
+first firing and repeat suppression observed
+EFFECTIVE [('C05D2_malformed', '1'), ('C05D2_multi', '1'), ('C05D2_negative', '1'), ('C05D2_sequence', '1'), ('ENTRA - Permission Grant Outside Baseline', '1')]
+C05D2_malformed 1792177980 success 1 1 0
+C05D2_negative 1792177980 success 0 0 0
+C05D2_multi 1792177980 success 2 2 0
+C05D2_sequence 1792177980 success 1 1 0
+C05D2_negative 1792178040 success 0 0 0
+C05D2_malformed 1792178040 success 1 0 1
+C05D2_multi 1792178040 success 2 0 2
+C05D2_sequence 1792178040 success 1 0 1
+ALERT_COUNTS {'ENTRA - Permission Grant Outside Baseline': 0, 'C05D2_negative': 0, 'C05D2_sequence': 1, 'C05D2_multi': 1, 'C05D2_malformed': 1}
+Traceback (most recent call last):
+  File "/home/yuji/lab/entra-identity-monitoring-detection/tools/c05_d2_schedule_sequence.py", line 21, in <module>
+    wait_for(lambda rows:any(r.get('result_count')=='2' and r.get('fired')=='1' and r.get('suppressed')=='1' for r in seq(rows)),'new event key fires while old key stays suppressed')
+  File "/home/yuji/lab/entra-identity-monitoring-detection/tools/c05_d2_schedule_sequence.py", line 8, in wait_for
+    time.sleep(10)
+KeyboardInterrupt

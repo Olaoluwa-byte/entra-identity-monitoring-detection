@@ -1,0 +1,43 @@
+{
+  "epoch": 1792178055.7255673,
+  "command": {
+    "command": [
+      "sudo",
+      "-n",
+      "install",
+      "-o",
+      "splunk",
+      "-g",
+      "splunk",
+      "-m",
+      "640",
+      "/home/yuji/lab/entra-identity-monitoring-detection/docs/evidence/c05-detect-02/policy-after-B.csv",
+      "/opt/splunk/etc/apps/search/lookups/c05d2_policy.csv"
+    ],
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "config_sha_before": {
+    "command": [
+      "sudo",
+      "-n",
+      "sha256sum",
+      "/opt/splunk/etc/apps/search/local/savedsearches.conf"
+    ],
+    "returncode": 0,
+    "stdout": "7a6498633d58ed7f9af247411267b15c17724637cd89924e955d4511c0bf7157  /opt/splunk/etc/apps/search/local/savedsearches.conf\n",
+    "stderr": ""
+  },
+  "config_sha_after": {
+    "command": [
+      "sudo",
+      "-n",
+      "sha256sum",
+      "/opt/splunk/etc/apps/search/local/savedsearches.conf"
+    ],
+    "returncode": 0,
+    "stdout": "7a6498633d58ed7f9af247411267b15c17724637cd89924e955d4511c0bf7157  /opt/splunk/etc/apps/search/local/savedsearches.conf\n",
+    "stderr": ""
+  }
+}

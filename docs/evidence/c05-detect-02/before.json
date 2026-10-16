@@ -1,0 +1,63 @@
+{
+  "git": {
+    "command": [
+      "git",
+      "status",
+      "--short",
+      "--branch"
+    ],
+    "returncode": 0,
+    "stdout": "## feat/c05-permission-grants\n?? detections/c05_permission_grants.preview.spl\n?? lookups/entra_approved_grants.csv\n?? tools/c05_d2_prepare.py\n",
+    "stderr": ""
+  },
+  "backup_stat": {
+    "command": [
+      "sudo",
+      "-n",
+      "stat",
+      "-c",
+      "%a %U %G %s",
+      "/var/backups/c05-detect-02-20261016/before.tgz"
+    ],
+    "returncode": 0,
+    "stdout": "600 root root 3430168\n",
+    "stderr": ""
+  },
+  "backup_sha": {
+    "command": [
+      "sudo",
+      "-n",
+      "sha256sum",
+      "/var/backups/c05-detect-02-20261016/before.tgz"
+    ],
+    "returncode": 0,
+    "stdout": "4e3a1fdd739c8ecff0a936a0256aeea738c06af447ba83f6b4e88eecfa661199  /var/backups/c05-detect-02-20261016/before.tgz\n",
+    "stderr": ""
+  },
+  "backup_members": {
+    "command": [
+      "sudo",
+      "-n",
+      "tar",
+      "-tzf",
+      "/var/backups/c05-detect-02-20261016/before.tgz"
+    ],
+    "returncode": 0,
+    "stdout": "local/savedsearches.conf\nmetadata/\nmetadata/local.meta\nmetadata/default.meta\nlookups/\nlookups/geo_us_states.kmz\nlookups/geo_countries.kmz\nlookups/README\nlookups/geo_attr_countries.csv\nlookups/entra_approved_consents.csv\nlookups/geo_attr_us_states.csv\nlookups/entra_known_apps.csv\n",
+    "stderr": ""
+  },
+  "live_hashes": {
+    "command": [
+      "sudo",
+      "-n",
+      "sha256sum",
+      "/opt/splunk/etc/apps/search/local/savedsearches.conf",
+      "/opt/splunk/etc/apps/search/metadata/local.meta",
+      "/opt/splunk/etc/apps/search/lookups/entra_known_apps.csv",
+      "/opt/splunk/etc/apps/search/lookups/entra_approved_grants.csv"
+    ],
+    "returncode": 0,
+    "stdout": "3760a757d689430cf6f8b9db12f6aa782e13134ddd24d455289e90c5a085ff2c  /opt/splunk/etc/apps/search/local/savedsearches.conf\n1ba9c5637079db45aa8751f82c93be3ba93c45a0c0dae291618dd09453c3bf6b  /opt/splunk/etc/apps/search/metadata/local.meta\nedc6262c26f111c428952d00aa39f374b32f7a475145907bd522e7d25d711c57  /opt/splunk/etc/apps/search/lookups/entra_known_apps.csv\ne9517f3520b58890e8185fb77a1d6efb6f35856434212dba4ca923843b41e747  /opt/splunk/etc/apps/search/lookups/entra_approved_grants.csv\n",
+    "stderr": ""
+  }
+}

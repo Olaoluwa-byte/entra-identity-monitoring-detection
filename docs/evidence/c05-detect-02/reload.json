@@ -1,0 +1,17 @@
+{
+  "command": [
+    "sudo",
+    "-n",
+    "-u",
+    "splunk",
+    "/opt/splunk/bin/splunk",
+    "_internal",
+    "call",
+    "/servicesNS/nobody/search/saved/searches/_reload",
+    "-method",
+    "POST"
+  ],
+  "returncode": 0,
+  "stdout": "QUERYING: 'https://127.0.0.1:8089/servicesNS/nobody/search/saved/searches/_reload'\nHTTP Status: 200.\nContent:\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!--This is to override browser formatting; see server.conf[httpServer] to disable. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .-->\n<?xml-stylesheet type=\"text/xml\" href=\"/static/atom.xsl\"?>\n<feed xmlns=\"http://www.w3.org/2005/Atom\" xmlns:s=\"http://dev.splunk.com/ns/rest\" xmlns:opensearch=\"http://a9.com/-/spec/opensearch/1.1/\">\n  <title>savedsearch</title>\n  <id>https://127.0.0.1:8089/servicesNS/nobody/search/saved/searches</id>\n  <updated>2026-10-16T15:11:12-04:00</updated>\n  <generator build=\"4174a2deda5d\" version=\"10.4.3\"/>\n  <author>\n    <name>Splunk</name>\n  </author>\n  <link href=\"/servicesNS/nobody/search/saved/searches/_new\" rel=\"create\"/>\n  <link href=\"/servicesNS/nobody/search/saved/searches/_reload\" rel=\"_reload\"/>\n  <link href=\"/servicesNS/nobody/search/saved/searches/_acl\" rel=\"_acl\"/>\n  <opensearch:totalResults>0</opensearch:totalResults>\n  <opensearch:itemsPerPage>30</opensearch:itemsPerPage>\n  <opensearch:startIndex>0</opensearch:startIndex>\n  <s:messages/>\n</feed>\n\n",
+  "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n"
+}

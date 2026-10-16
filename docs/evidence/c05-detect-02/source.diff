@@ -1,0 +1,571 @@
+diff --git a/README.md b/README.md
+index 4d2d912..359f141 100644
+--- a/README.md
++++ b/README.md
+@@ -77,3 +77,7 @@ Screenshots have the account email and source IP redacted.
+ ## Alert configuration repair (C05-ALERTS-01)
+ 
+ The count trigger uses counttype/relation/quantity and per-result mode for 24-hour correlationId suppression. Detection SPL and schedule are unchanged. See [validation and operational notes](docs/c05-alerts-01-validation.md) and [evidence](docs/evidence/c05-alerts-01/).
++
++## Permission-grant detection (C05-DETECT-02)
++
++Detection 2 compares successful Entra app-role and delegated grants with an explicit five-field baseline. It separates delegated scopes, retains malformed events as parsing errors, and uses per-event/per-permission suppression with local-only alert tracking. See [validation and reproducibility](docs/c05-detect-02-validation.md), [production SPL](detections/c05_permission_grants.spl), and [acceptance evidence](docs/evidence/c05-detect-02/acceptance.json). This lab validation does not establish fresh tenant ingestion or complete the separately scoped Premium-dependent sign-in work.
+diff --git a/detections/c05_permission_grants.preview.spl b/detections/c05_permission_grants.preview.spl
+new file mode 100644
+index 0000000..aea0589
+--- /dev/null
++++ b/detections/c05_permission_grants.preview.spl
+@@ -0,0 +1,69 @@
++index=entra_id sourcetype=entra:audit earliest=0 result=success
++(activityDisplayName="*app role assignment to service principal*" OR activityDisplayName="*delegated permission grant*")
++| eval operation=trim(activityDisplayName)
++| where operation IN ("Add app role assignment to service principal","Add delegated permission grant")
++| eval id=trim(id)
++| spath path=initiatedBy.user.userPrincipalName output=actor_user
++| spath path=initiatedBy.app.displayName output=actor_app
++| eval actor=case(isnotnull(actor_user) AND actor_user!="null" AND actor_user!="",actor_user,isnotnull(actor_app) AND actor_app!="null" AND actor_app!="",actor_app,true(),"unknown")
++| eval missing_id=if(isnull(id) OR id="" OR id="null",1,0)
++| eval event_id=if(missing_id=1,"missing:".sha256(_raw),id)
++| spath path=targetResources{} output=target
++| eval target=coalesce(target,"{}")
++| mvexpand target
++| eval target_key=sha256(target)
++| spath input=target path=id output=resource_sp_id
++| eval resource_sp_id=trim(resource_sp_id)
++| eval resource_sp_id=if(resource_sp_id="" OR lower(resource_sp_id)="null",null(),resource_sp_id)
++| spath input=target path=displayName output=resource_name
++| spath input=target path=modifiedProperties{} output=property
++| eval property=coalesce(property,"{}")
++| mvexpand property
++| spath input=property path=displayName output=property_name
++| spath input=property path=newValue output=new_value
++| eval property_value=trim(trim(new_value),"\"")
++| eval property_value=trim(property_value)
++| eval property_value=if(property_value="" OR property_value="null",null(),property_value)
++| eval grant_marker=if(property_name IN ("AppRole.Id","AppRole.Value","DelegatedPermissionGrant.Scope","DelegatedPermissionGrant.ConsentType"),1,0)
++| stats
++    earliest(_time) AS _time
++    values(actor) AS actor
++    values(operation) AS operation
++    values(correlationId) AS correlationId
++    max(missing_id) AS missing_id
++    max(grant_marker) AS grant_marker
++    values(resource_sp_id) AS resource_sp_id
++    values(resource_name) AS resource_name
++    values(eval(if(property_name="ServicePrincipal.ObjectID",property_value,null()))) AS client_sp_id
++    values(eval(if(property_name="AppRole.Value",property_value,null()))) AS app_permissions
++    values(eval(if(property_name="DelegatedPermissionGrant.Scope",property_value,null()))) AS delegated_scopes
++    values(eval(if(property_name="DelegatedPermissionGrant.ConsentType",property_value,null()))) AS consent_type
++  BY event_id target_key
++| eventstats max(grant_marker) AS event_has_grant BY event_id
++| where grant_marker=1 OR event_has_grant=0
++| eval ambiguous=if(coalesce(mvcount(client_sp_id),0)!=1 OR coalesce(mvcount(resource_sp_id),0)!=1 OR coalesce(mvcount(operation),0)!=1,1,0)
++| eval client_sp_id=lower(coalesce(mvindex(client_sp_id,0),"__missing__"))
++| eval resource_sp_id=lower(coalesce(mvindex(resource_sp_id,0),"__missing__"))
++| eval grant_type=if(operation="Add delegated permission grant","delegated","application")
++| eval permission=if(grant_type="application",app_permissions,split(replace(trim(mvjoin(delegated_scopes," ")),"[[:space:]]+"," ")," "))
++| eval permission=coalesce(permission,"__missing__")
++| eval consent_type=if(grant_type="application","not_applicable",coalesce(consent_type,"__missing__"))
++| mvexpand permission
++| eval parse_issue=case(
++    missing_id=1,"missing_event_id",
++    event_has_grant=0,"missing_grant_properties",
++    ambiguous=1,"missing_or_ambiguous_attribution",
++    permission="__missing__" OR permission="","missing_permission",
++    grant_type="delegated" AND mvcount(consent_type)>1,"ambiguous_consent_type",
++    consent_type="__missing__","missing_consent_type",
++    true(),"none")
++| lookup entra_approved_grants.csv
++    client_sp_id resource_sp_id grant_type permission consent_type
++    OUTPUT permission AS matched_permission
++| eval baseline_status=case(
++    parse_issue!="none","parse_error",
++    isnotnull(matched_permission),"approved",
++    true(),"outside_baseline")
++| eval key_consent=mvjoin(mvsort(consent_type),";")
++| eval alert_key=sha256(len(event_id).":".event_id.len(client_sp_id).":".client_sp_id.len(resource_sp_id).":".resource_sp_id.len(grant_type).":".grant_type.len(permission).":".permission.len(key_consent).":".key_consent.len(parse_issue).":".parse_issue)
++| table _time event_id correlationId actor client_sp_id resource_sp_id resource_name grant_type permission consent_type parse_issue baseline_status alert_key
+diff --git a/detections/c05_permission_grants.spl b/detections/c05_permission_grants.spl
+new file mode 100644
+index 0000000..2cc096b
+--- /dev/null
++++ b/detections/c05_permission_grants.spl
+@@ -0,0 +1,70 @@
++index=entra_id sourcetype=entra:audit earliest=-24h latest=now _index_earliest=-35m result=success
++(activityDisplayName="*app role assignment to service principal*" OR activityDisplayName="*delegated permission grant*")
++| eval operation=trim(activityDisplayName)
++| where operation IN ("Add app role assignment to service principal","Add delegated permission grant")
++| eval id=trim(id)
++| spath path=initiatedBy.user.userPrincipalName output=actor_user
++| spath path=initiatedBy.app.displayName output=actor_app
++| eval actor=case(isnotnull(actor_user) AND actor_user!="null" AND actor_user!="",actor_user,isnotnull(actor_app) AND actor_app!="null" AND actor_app!="",actor_app,true(),"unknown")
++| eval missing_id=if(isnull(id) OR id="" OR id="null",1,0)
++| eval event_id=if(missing_id=1,"missing:".sha256(_raw),id)
++| spath path=targetResources{} output=target
++| eval target=coalesce(target,"{}")
++| mvexpand target
++| eval target_key=sha256(target)
++| spath input=target path=id output=resource_sp_id
++| eval resource_sp_id=trim(resource_sp_id)
++| eval resource_sp_id=if(resource_sp_id="" OR lower(resource_sp_id)="null",null(),resource_sp_id)
++| spath input=target path=displayName output=resource_name
++| spath input=target path=modifiedProperties{} output=property
++| eval property=coalesce(property,"{}")
++| mvexpand property
++| spath input=property path=displayName output=property_name
++| spath input=property path=newValue output=new_value
++| eval property_value=trim(trim(new_value),"\"")
++| eval property_value=trim(property_value)
++| eval property_value=if(property_value="" OR property_value="null",null(),property_value)
++| eval grant_marker=if(property_name IN ("AppRole.Id","AppRole.Value","DelegatedPermissionGrant.Scope","DelegatedPermissionGrant.ConsentType"),1,0)
++| stats
++    earliest(_time) AS _time
++    values(actor) AS actor
++    values(operation) AS operation
++    values(correlationId) AS correlationId
++    max(missing_id) AS missing_id
++    max(grant_marker) AS grant_marker
++    values(resource_sp_id) AS resource_sp_id
++    values(resource_name) AS resource_name
++    values(eval(if(property_name="ServicePrincipal.ObjectID",property_value,null()))) AS client_sp_id
++    values(eval(if(property_name="AppRole.Value",property_value,null()))) AS app_permissions
++    values(eval(if(property_name="DelegatedPermissionGrant.Scope",property_value,null()))) AS delegated_scopes
++    values(eval(if(property_name="DelegatedPermissionGrant.ConsentType",property_value,null()))) AS consent_type
++  BY event_id target_key
++| eventstats max(grant_marker) AS event_has_grant BY event_id
++| where grant_marker=1 OR event_has_grant=0
++| eval ambiguous=if(coalesce(mvcount(client_sp_id),0)!=1 OR coalesce(mvcount(resource_sp_id),0)!=1 OR coalesce(mvcount(operation),0)!=1,1,0)
++| eval client_sp_id=lower(coalesce(mvindex(client_sp_id,0),"__missing__"))
++| eval resource_sp_id=lower(coalesce(mvindex(resource_sp_id,0),"__missing__"))
++| eval grant_type=if(operation="Add delegated permission grant","delegated","application")
++| eval permission=if(grant_type="application",app_permissions,split(replace(trim(mvjoin(delegated_scopes," ")),"[[:space:]]+"," ")," "))
++| eval permission=coalesce(permission,"__missing__")
++| eval consent_type=if(grant_type="application","not_applicable",coalesce(consent_type,"__missing__"))
++| mvexpand permission
++| eval parse_issue=case(
++    missing_id=1,"missing_event_id",
++    event_has_grant=0,"missing_grant_properties",
++    ambiguous=1,"missing_or_ambiguous_attribution",
++    permission="__missing__" OR permission="","missing_permission",
++    grant_type="delegated" AND mvcount(consent_type)>1,"ambiguous_consent_type",
++    consent_type="__missing__","missing_consent_type",
++    true(),"none")
++| lookup entra_approved_grants.csv
++    client_sp_id resource_sp_id grant_type permission consent_type
++    OUTPUT permission AS matched_permission
++| eval baseline_status=case(
++    parse_issue!="none","parse_error",
++    isnotnull(matched_permission),"approved",
++    true(),"outside_baseline")
++| eval key_consent=mvjoin(mvsort(consent_type),";")
++| eval alert_key=sha256(len(event_id).":".event_id.len(client_sp_id).":".client_sp_id.len(resource_sp_id).":".resource_sp_id.len(grant_type).":".grant_type.len(permission).":".permission.len(key_consent).":".key_consent.len(parse_issue).":".parse_issue)
++| where baseline_status!="approved"
++| table _time event_id correlationId actor client_sp_id resource_sp_id resource_name grant_type permission consent_type parse_issue baseline_status alert_key
+diff --git a/detections/savedsearches.conf b/detections/savedsearches.conf
+index ab4c6cf..4c217c1 100644
+--- a/detections/savedsearches.conf
++++ b/detections/savedsearches.conf
+@@ -26,3 +26,23 @@ search = index=entra_id sourcetype=entra:audit result=success _index_earliest=-3
+ | lookup entra_known_apps.csv target_id OUTPUT approved_actor \
+ | where isnull(approved_actor) OR approved_actor!=actor \
+ | stats earliest(_time) as _time values(operation) as operation values(key_type) as key_type values(cred_context) as cred_context values(src_ip) as src_ip by correlationId actor target_app target_id
++
++[ENTRA - Permission Grant Outside Baseline]
++enableSched = 1
++cron_schedule = */15 * * * *
++dispatch.earliest_time = -24h
++dispatch.latest_time = now
++counttype = number of events
++relation = greater than
++quantity = 0
++alert.track = 1
++alert.digest_mode = 0
++alert.suppress = 1
++alert.suppress.fields = alert_key
++alert.suppress.period = 24h
++alert.severity = 3
++action.email = 0
++action.script = 0
++action.webhook = 0
++description = Successful permission grants outside the approved five-field baseline, including explicit parse errors.
++search = index=entra_id sourcetype=entra:audit earliest=-24h latest=now _index_earliest=-35m result=success (activityDisplayName="*app role assignment to service principal*" OR activityDisplayName="*delegated permission grant*") | eval operation=trim(activityDisplayName) | where operation IN ("Add app role assignment to service principal","Add delegated permission grant") | eval id=trim(id) | spath path=initiatedBy.user.userPrincipalName output=actor_user | spath path=initiatedBy.app.displayName output=actor_app | eval actor=case(isnotnull(actor_user) AND actor_user!="null" AND actor_user!="",actor_user,isnotnull(actor_app) AND actor_app!="null" AND actor_app!="",actor_app,true(),"unknown") | eval missing_id=if(isnull(id) OR id="" OR id="null",1,0) | eval event_id=if(missing_id=1,"missing:".sha256(_raw),id) | spath path=targetResources{} output=target | eval target=coalesce(target,"{}") | mvexpand target | eval target_key=sha256(target) | spath input=target path=id output=resource_sp_id | eval resource_sp_id=trim(resource_sp_id) | eval resource_sp_id=if(resource_sp_id="" OR lower(resource_sp_id)="null",null(),resource_sp_id) | spath input=target path=displayName output=resource_name | spath input=target path=modifiedProperties{} output=property | eval property=coalesce(property,"{}") | mvexpand property | spath input=property path=displayName output=property_name | spath input=property path=newValue output=new_value | eval property_value=trim(trim(new_value),"\"") | eval property_value=trim(property_value) | eval property_value=if(property_value="" OR property_value="null",null(),property_value) | eval grant_marker=if(property_name IN ("AppRole.Id","AppRole.Value","DelegatedPermissionGrant.Scope","DelegatedPermissionGrant.ConsentType"),1,0) | stats     earliest(_time) AS _time     values(actor) AS actor     values(operation) AS operation     values(correlationId) AS correlationId     max(missing_id) AS missing_id     max(grant_marker) AS grant_marker     values(resource_sp_id) AS resource_sp_id     values(resource_name) AS resource_name     values(eval(if(property_name="ServicePrincipal.ObjectID",property_value,null()))) AS client_sp_id     values(eval(if(property_name="AppRole.Value",property_value,null()))) AS app_permissions     values(eval(if(property_name="DelegatedPermissionGrant.Scope",property_value,null()))) AS delegated_scopes     values(eval(if(property_name="DelegatedPermissionGrant.ConsentType",property_value,null()))) AS consent_type   BY event_id target_key | eventstats max(grant_marker) AS event_has_grant BY event_id | where grant_marker=1 OR event_has_grant=0 | eval ambiguous=if(coalesce(mvcount(client_sp_id),0)!=1 OR coalesce(mvcount(resource_sp_id),0)!=1 OR coalesce(mvcount(operation),0)!=1,1,0) | eval client_sp_id=lower(coalesce(mvindex(client_sp_id,0),"__missing__")) | eval resource_sp_id=lower(coalesce(mvindex(resource_sp_id,0),"__missing__")) | eval grant_type=if(operation="Add delegated permission grant","delegated","application") | eval permission=if(grant_type="application",app_permissions,split(replace(trim(mvjoin(delegated_scopes," ")),"[[:space:]]+"," ")," ")) | eval permission=coalesce(permission,"__missing__") | eval consent_type=if(grant_type="application","not_applicable",coalesce(consent_type,"__missing__")) | mvexpand permission | eval parse_issue=case(     missing_id=1,"missing_event_id",     event_has_grant=0,"missing_grant_properties",     ambiguous=1,"missing_or_ambiguous_attribution",     permission="__missing__" OR permission="","missing_permission",     grant_type="delegated" AND mvcount(consent_type)>1,"ambiguous_consent_type",     consent_type="__missing__","missing_consent_type",     true(),"none") | lookup entra_approved_grants.csv     client_sp_id resource_sp_id grant_type permission consent_type     OUTPUT permission AS matched_permission | eval baseline_status=case(     parse_issue!="none","parse_error",     isnotnull(matched_permission),"approved",     true(),"outside_baseline") | eval key_consent=mvjoin(mvsort(consent_type),";") | eval alert_key=sha256(len(event_id).":".event_id.len(client_sp_id).":".client_sp_id.len(resource_sp_id).":".resource_sp_id.len(grant_type).":".grant_type.len(permission).":".permission.len(key_consent).":".key_consent.len(parse_issue).":".parse_issue) | where baseline_status!="approved" | table _time event_id correlationId actor client_sp_id resource_sp_id resource_name grant_type permission consent_type parse_issue baseline_status alert_key
+diff --git a/docs/c05-detect-02-validation.md b/docs/c05-detect-02-validation.md
+new file mode 100644
+index 0000000..dbdac8f
+--- /dev/null
++++ b/docs/c05-detect-02-validation.md
+@@ -0,0 +1,36 @@
++# C05-DETECT-02 revision 1
++
++## Scope and approval
++User approved revision 1 on 2026-10-16 at 14:13 EDT, then requested agent takeover at 15:04 EDT. Base: e1f33d34deb9ec9cdba5a71d29ce8405ede5bdca. Branch: feat/c05-permission-grants. This implements successful application-role and delegated permission-grant detection on UbuntuDesk. D1, C09, ingestion, tenant permissions, Premium activation and TLS settings are excluded. Publication remains separately authorized.
++
++## Detection behavior
++The five-field baseline matches receiving client service-principal ObjectID, resource service-principal ObjectID, grant type, individual permission, and consent type. Application consent type is not_applicable. The three baseline tuples were explicitly confirmed by the user. Actor is investigation context, not an authorization key. Consent-to-application events are context and do not substitute for individual grant records.
++
++Nested targets and modified properties are expanded together, grouped by audit event ID and target hash. Secondary targets without grant properties are ignored when a grant-bearing target exists. Events without usable grant properties are retained as parse_error. Missing ID uses a raw-event SHA-256 fallback and remains a parsing error. Blank/literal-null attribution, permissions and delegated consent are retained as errors; multiple distinct client/resource values or conflicting delegated consent are errors. Delegated scopes are split into individual permissions.
++
++The stable alert_key hashes a length-prefixed sequence of event ID, client, resource, grant type, permission, sorted consent values and parse issue. Distinct grants sharing correlationId remain separate; repeated identical keys suppress for 24 hours. Missing-ID fallback is sensitive to raw JSON serialization changes.
++
++Schedule: every 15 minutes, event window -24h to now, index-time lookback -35m, result count greater than zero, local tracking, per-result alerts and suppression. Email, script and webhook actions explicitly disabled. Parse errors trigger investigation alongside grants outside baseline.
++
++## Repeatable validation
++Run tools/c05_d2_validate.py from the repository root with a valid sudo session and existing authenticated Splunk CLI session. It evaluates synthetic raw JSON using the same parser and a separate c05d2_fixture_baseline.csv. It writes exact searches, fixture data, expected/actual results and return codes to docs/evidence/c05-detect-02/pipeline.json. No fixture events enter the live entra_id index.
++
++29 fixtures passed. The initial run had one incorrect test expectation: missing consent should retain User.Read, not remove the permission. Initial evidence is preserved in pipeline-initial.json; the corrected full rerun is pipeline.json. Manual screenshots were supplementary and are not substituted for executable evidence.
++
++Scheduler tests use C05D2_negative, C05D2_sequence, C05D2_multi and C05D2_malformed with a separate synthetic policy CSV. The sequence helper waits for first-key firing and repeat suppression, adds a distinct event ID to data without changing search configuration, then waits for one additional firing while the original key stays suppressed. Capture helpers retain scheduler records and fired-alert SIDs. Final acceptance.json is the authoritative completion checklist; absence or a failed check means not ready.
++
++## Rollback and limitations
++Root-only backup: /var/backups/c05-detect-02-20261016/before.tgz. An additional pre-d2-savedsearches.conf preserves the file immediately before deployment. Restore only D2 and its named validation stanzas; preserve unrelated edits, metadata, D1 baseline and live suppression history. Reload saved searches and verify service and scheduler recovery. Configuration rollback does not restore runtime suppression history.
++
++Synthetic and retained historical evidence does not establish fresh Entra ingestion. Actual 24-hour suppression expiry is not waited out. The -24h event bound can exclude events ingested more than 24 hours late. The finite Splunk Developer license and pre-existing TLS warning are separately tracked. Premium-dependent sign-in detections remain outside this revision; overall C05 is not complete from this implementation alone.
++
++## Study and portfolio connections
++Core first: search pipelines, fields, tables, lookups, saved reports versus alerts, time ranges and scheduled alert conditions. Supporting Power User: spath, stats/eventstats, multivalue fields, eval/case, null handling and reusable test fixtures. Defense Analyst: permission-grant triage, attribution, telemetry gaps and evidence-backed alert disposition.
++
++Automation demonstrated here: deterministic parser regression, scheduler/suppression evidence capture, invariant checks and SHA-256 packaging. Human review, acceptance and publication decisions remain explicit.
++
++## Observed final outcome
++
++All 33 acceptance checks passed, with 29/29 synthetic parser fixtures. D2 completed its normal 15:15 EDT run successfully with zero findings. The scheduled harness demonstrated approved-negative silence, unauthorized-positive firing, repeated-key suppression, a new-key firing without resetting the search, two separately fired permission results, and a malformed-event alert; fired-alert SIDs matched scheduler records. All four temporary schedules were disabled; D2 remains enabled. D1 and all seven C09 schedules succeeded after deployment, with D3a observed at its next 15:20 ten-minute cadence. Targeted reload succeeded; no restart was needed.
++
++The initial all-C09 health check ran before D3a next came due and was retained as acceptance-before-c09-cadence.json. acceptance.json records the completed health gate. Only the polling helper was interrupted during runtime inspection; the unchanged scheduler definitions and data remained active, and final runtime capture verifies the completed sequence.
+diff --git a/lookups/entra_approved_grants.csv b/lookups/entra_approved_grants.csv
+new file mode 100644
+index 0000000..f683033
+--- /dev/null
++++ b/lookups/entra_approved_grants.csv
+@@ -0,0 +1,4 @@
++client_sp_id,resource_sp_id,grant_type,permission,consent_type
++7548fb4d-fb96-4ebe-9499-09c6d1bb9aa0,6d1c1584-ac95-4b9d-bd35-4661d9d321f0,application,AuditLog.Read.All,not_applicable
++7548fb4d-fb96-4ebe-9499-09c6d1bb9aa0,6d1c1584-ac95-4b9d-bd35-4661d9d321f0,application,Directory.Read.All,not_applicable
++7548fb4d-fb96-4ebe-9499-09c6d1bb9aa0,6d1c1584-ac95-4b9d-bd35-4661d9d321f0,delegated,User.Read,AllPrincipals
+diff --git a/tools/c05_d2_capture.py b/tools/c05_d2_capture.py
+new file mode 100644
+index 0000000..31d8e6f
+--- /dev/null
++++ b/tools/c05_d2_capture.py
+@@ -0,0 +1,21 @@
++from c05_d2_validate import *
++import re,sys
++from urllib.parse import quote
++NAME='ENTRA - Permission Grant Outside Baseline'
++def command(a):
++ p=subprocess.run(a,text=True,capture_output=True,timeout=120);return dict(command=a,returncode=p.returncode,stdout=p.stdout,stderr=p.stderr)
++def records():
++ r=command(['sudo','-n','cat','/opt/splunk/var/log/splunk/scheduler.log']);assert r['returncode']==0
++ lines=[x for x in r['stdout'].splitlines() if ('C05D2_' in x or NAME in x) and 'status=' in x]
++ return [{'line':x,**{k:v.strip('"') for k,v in re.findall(r'(?:^|, )([a-z_]+)=("[^"]*"|[^,]*)',x)}} for x in lines]
++def capture(stage):
++ d={'epoch':time.time(),'scheduler':records(),'alerts':{},'effective':query('| rest /servicesNS/-/search/saved/searches | search title="C05D2_*" OR title="'+NAME+'" | table title is_scheduled cron_schedule alert_type alert_comparator alert_threshold alert.digest_mode alert.suppress alert.suppress.fields alert.suppress.period action.email action.script action.webhook search')}
++ for name in [NAME,'C05D2_negative','C05D2_sequence','C05D2_multi','C05D2_malformed']:
++  d['alerts'][name]=query('| rest /servicesNS/-/search/alerts/fired_alerts/'+quote(name,safe='')+' | table title sid trigger_time actions')
++ d['live_config_sha']=command(['sudo','-n','sha256sum','/opt/splunk/etc/apps/search/local/savedsearches.conf'])
++ save('runtime-'+stage+'.json',d)
++ print('EFFECTIVE',[(r['title'],r.get('is_scheduled')) for r in d['effective']['rows']],flush=True)
++ for r in d['scheduler'][-16:]:print(r.get('savedsearch_name'),r.get('scheduled_time'),r.get('status'),r.get('result_count'),r.get('fired'),r.get('suppressed'),flush=True)
++ print('ALERT_COUNTS',{k:len(v['rows']) for k,v in d['alerts'].items()},flush=True)
++ return d
++if __name__=='__main__':capture(sys.argv[1])
+diff --git a/tools/c05_d2_finalize.py b/tools/c05_d2_finalize.py
+new file mode 100644
+index 0000000..a370dd3
+--- /dev/null
++++ b/tools/c05_d2_finalize.py
+@@ -0,0 +1,67 @@
++from c05_d2_capture import *
++import os
++def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
++def main():
++ assert os.geteuid()==0
++ ins=json.loads((OUT/'install.json').read_text());before=json.loads((OUT/'before.json').read_text())
++ d=capture('final-before-cleanup');checks={}
++ rs=d['scheduler'];by=lambda n:[r for r in rs if r.get('savedsearch_name')==n]
++ checks['all_scheduler_success']=bool(rs) and all(r.get('status')=='success' for r in rs)
++ for suite in ['negative','sequence','multi','malformed']:
++  name='C05D2_'+suite;r=by(name);a=d['alerts'][name]
++  checks[suite+'_sid_match']=bool(r) and a['returncode']==0 and {x['sid'] for x in r if int(x.get('fired','0'))>0}=={x['sid'] for x in a['rows']}
++  checks[suite+'_outbound_off']=all(x.get('alert_actions','')=='' for x in r) and all(x.get('actions','')=='' for x in a['rows'])
++ checks['approved_scheduled_silent']=bool(by('C05D2_negative')) and all(r['result_count']=='0' and r['fired']=='0' for r in by('C05D2_negative'))
++ seq=by('C05D2_sequence')
++ checks['positive_scheduled_fires']=any(r['result_count']=='1' and r['fired']=='1' for r in seq)
++ checks['repeat_key_suppressed']=any(r['result_count']=='1' and r['fired']=='0' and r['suppressed']=='1' for r in seq)
++ checks['new_key_fires']=any(r['result_count']=='2' and r['fired']=='1' and r['suppressed']=='1' for r in seq)
++ checks['two_permissions_fire_separately']=any(r['result_count']=='2' and r['fired']=='2' for r in by('C05D2_multi'))
++ checks['malformed_scheduled_fires']=any(r['result_count']=='1' and r['fired']=='1' for r in by('C05D2_malformed'))
++ change=json.loads((OUT/'policy-data-change.json').read_text());checks['stable_config_during_suppression']=change['config_sha_before']['stdout']==change['config_sha_after']['stdout']==d['live_config_sha']['stdout']
++ live=by(NAME);checks['normal_live_run']=bool(live) and all(r['result_count']=='0' and r['fired']=='0' and r['status']=='success' for r in live) and d['alerts'][NAME]['returncode']==0 and not d['alerts'][NAME]['rows']
++ pipe=json.loads((OUT/'pipeline.json').read_text());checks['all_29_parser_fixtures']=pipe['all_passed'] and len(pipe['cases'])==29
++ checks['validated_preview_unchanged']=sha(ROOT/'detections/c05_permission_grants.preview.spl')==pipe['source_sha256']
++ preview=(ROOT/'detections/c05_permission_grants.preview.spl').read_text();prod=(ROOT/'detections/c05_permission_grants.spl').read_text()
++ expected=preview[:preview.rindex('| table ')].replace('earliest=0','earliest=-24h latest=now _index_earliest=-35m',1)+'| where baseline_status!="approved"\n'+preview[preview.rindex('| table '):]
++ checks['production_parser_matches_validated_preview']=expected==prod
++ path=Path('/opt/splunk/etc/apps/search/local/savedsearches.conf');old=Path('/var/backups/c05-detect-02-20261016/pre-d2-savedsearches.conf').read_text()
++ checks['unrelated_live_config_unchanged']=path.read_text()==old+'\n'+ins['live_stanza']+ins['test_config']
++ source=(ROOT/'detections/savedsearches.conf').read_text();base=(OUT/'source-before.conf').read_text()
++ checks['existing_source_unchanged']=source==base+'\n'+ins['live_stanza']
++ checks['baseline_source_live_match']=sha(ROOT/'lookups/entra_approved_grants.csv')==sha('/opt/splunk/etc/apps/search/lookups/entra_approved_grants.csv')
++ hashes={line.split(None,1)[1]:line.split()[0] for line in before['live_hashes']['stdout'].splitlines()}
++ checks['metadata_and_existing_lookups_unchanged']=all(sha(p)==h for p,h in hashes.items() if p!=str(path))
++ historical=query(preview+' | stats count by permission baseline_status parse_issue');save('historical-summary.json',historical)
++ checks['historical_three_approved']=historical['returncode']==0 and len(historical['rows'])==3 and all(r['baseline_status']=='approved' and r['parse_issue']=='none' and r['count']=='1' for r in historical['rows'])
++ b=command(['/opt/splunk/bin/splunk','btool','savedsearches','list',NAME,'--debug']);save('effective-config.json',b)
++ expected_keys={'enableSched':'1','cron_schedule':'*/15 * * * *','dispatch.earliest_time':'-24h','dispatch.latest_time':'now','counttype':'number of events','relation':'greater than','quantity':'0','alert.track':'1','alert.digest_mode':'0','alert.suppress':'1','alert.suppress.fields':'alert_key','alert.suppress.period':'24h','action.email':'0','action.script':'0','action.webhook':'0'}
++ checks['effective_config_valid']=b['returncode']==0 and all(re.search(r'\s'+re.escape(k)+r' = '+re.escape(v)+r'\s*$',b['stdout'],re.M) for k,v in expected_keys.items())
++ cfg=command(['/opt/splunk/bin/splunk','btool','check']);checks['config_check_clean']=cfg['returncode']==0 and not cfg['stdout'] and not cfg['stderr']
++ logs=Path('/opt/splunk/var/log/splunk/scheduler.log').read_text().splitlines();health=[]
++ for x in logs:
++  if ('app="c09_detections"' in x or 'ENTRA - App Credential Added Outside Baseline' in x) and 'status=' in x:
++   r={k:v.strip('"') for k,v in re.findall(r'(?:^|, )([a-z_]+)=("[^"]*"|[^,]*)',x)}
++   if float(r.get('scheduled_time','0'))>ins['epoch']:health.append(r)
++ checks['d1_scheduler_healthy']=any(r.get('savedsearch_name')=='ENTRA - App Credential Added Outside Baseline' and r.get('status')=='success' for r in health)
++ c09=[r for r in health if r.get('app')=='c09_detections'];checks['c09_seven_schedules_healthy']=len({r['savedsearch_name'] for r in c09 if r.get('status')=='success'})==7 and all(r.get('status')=='success' for r in c09)
++ service=command(['systemctl','show','Splunkd','-p','ActiveState','-p','SubState']);web=command(['curl','--max-time','10','-s','-o','/dev/null','-w','%{http_code}','http://127.0.0.1:8000/en-US/account/login'])
++ checks['service_and_web_healthy']='ActiveState=active' in service['stdout'] and 'SubState=running' in service['stdout'] and web['stdout']=='200'
++ # Disable only the four temporary schedules; retain fixtures and alert evidence.
++ text=path.read_text()
++ for name in ins['test_names']:
++  pat=r'(?ms)^\['+re.escape(name)+r'\]\n.*?(?=^\[|\Z)';m=re.search(pat,text);assert m
++  stanza=m.group();assert stanza.count('enableSched = 1')==1
++  text=text[:m.start()]+stanza.replace('enableSched = 1','enableSched = 0',1)+text[m.end():]
++ path.write_text(text)
++ reload=command(['sudo','-n','-u','splunk','/opt/splunk/bin/splunk','_internal','call','/servicesNS/nobody/search/saved/searches/_reload','-method','POST'])
++ clean=query('| rest /servicesNS/-/search/saved/searches | search title="C05D2_*" OR title="'+NAME+'" | table title is_scheduled')
++ checks['temporary_schedules_disabled']=clean['returncode']==0 and len([r for r in clean['rows'] if r['title'].startswith('C05D2_')])==4 and all(r['is_scheduled']=='0' for r in clean['rows'] if r['title'].startswith('C05D2_'))
++ checks['live_d2_stays_enabled']=any(r['title']==NAME and r['is_scheduled']=='1' for r in clean['rows'])
++ save('acceptance.json',{'epoch':time.time(),'checks':checks,'all_passed':all(checks.values()),'scheduler':rs,'health_scheduler':health,'service':service,'web':web,'config_check':cfg,'cleanup':clean,'cleanup_reload':reload,'limitations':['Synthetic and historical evidence; no fresh tenant grant','24-hour expiry not waited out','Coordinator interrupted only the polling helper after data change; scheduler searches continued unchanged. Final capture verifies outcomes.']})
++ st=ROOT.stat()
++ for p in OUT.iterdir():os.chown(p,st.st_uid,st.st_gid)
++ for k,v in checks.items():print(k,v,flush=True)
++ assert all(checks.values()),'Required acceptance check failed'
++ print('READY_FOR_INDEPENDENT_REVIEW',flush=True)
++if __name__=='__main__':main()
+diff --git a/tools/c05_d2_health_finish.py b/tools/c05_d2_health_finish.py
+new file mode 100644
+index 0000000..dec7d57
+--- /dev/null
++++ b/tools/c05_d2_health_finish.py
+@@ -0,0 +1,19 @@
++from c05_d2_capture import *
++import os,shutil
++a=OUT/'acceptance.json';d=json.loads(a.read_text());assert [k for k,v in d['checks'].items() if not v]==['c09_seven_schedules_healthy']
++shutil.copyfile(a,OUT/'acceptance-before-c09-cadence.json')
++epoch=json.loads((OUT/'install.json').read_text())['epoch'];deadline=time.time()+360
++while time.time()<deadline:
++ raw=command(['sudo','-n','cat','/opt/splunk/var/log/splunk/scheduler.log']);assert raw['returncode']==0
++ rows=[]
++ for line in raw['stdout'].splitlines():
++  if 'app="c09_detections"' in line and 'status=' in line:
++   r={k:v.strip('"') for k,v in re.findall(r'(?:^|, )([a-z_]+)=("[^"]*"|[^,]*)',line)}
++   if float(r.get('scheduled_time','0'))>epoch:rows.append(r)
++ assert all(r['status']=='success' for r in rows),'C09 scheduler failure'
++ if len({r['savedsearch_name'] for r in rows})==7:
++  d['health_scheduler']=[r for r in d['health_scheduler'] if r.get('app')!='c09_detections']+rows
++  d['checks']['c09_seven_schedules_healthy']=True;d['all_passed']=all(d['checks'].values());d['health_completion_epoch']=time.time();save('acceptance.json',d)
++  print('ALL',len(d['checks']),'ACCEPTANCE CHECKS PASSED',flush=True);break
++ time.sleep(10)
++else:raise RuntimeError('C09 D3a next normal cadence was not observed')
+diff --git a/tools/c05_d2_install.py b/tools/c05_d2_install.py
+new file mode 100644
+index 0000000..01a898e
+--- /dev/null
++++ b/tools/c05_d2_install.py
+@@ -0,0 +1,38 @@
++from c05_d2_validate import *
++import os,shutil,re
++NAME='ENTRA - Permission Grant Outside Baseline'
++LIVE=Path('/opt/splunk/etc/apps/search/local/savedsearches.conf')
++BACK=Path('/var/backups/c05-detect-02-20261016')
++def command(a):
++ p=subprocess.run(a,capture_output=True,text=True,timeout=120);return dict(command=a,returncode=p.returncode,stdout=p.stdout,stderr=p.stderr)
++def install():
++ assert os.geteuid()==0
++ assert json.loads((OUT/'pipeline.json').read_text())['all_passed']
++ before=json.loads((OUT/'before.json').read_text()); hashes={line.split(None,1)[1]:line.split()[0] for line in before['live_hashes']['stdout'].splitlines()}
++ for p,h in hashes.items():assert hashlib.sha256(Path(p).read_bytes()).hexdigest()==h,('drift',p)
++ old=LIVE.read_text();assert NAME not in old and '[C05D2_' not in old
++ shutil.copy2(LIVE,BACK/'pre-d2-savedsearches.conf');os.chmod(BACK/'pre-d2-savedsearches.conf',0o600)
++ src=ROOT/'detections/savedsearches.conf';(OUT/'source-before.conf').write_text(src.read_text())
++ policy='enableSched = 1\ncron_schedule = */15 * * * *\ndispatch.earliest_time = -24h\ndispatch.latest_time = now\ncounttype = number of events\nrelation = greater than\nquantity = 0\nalert.track = 1\nalert.digest_mode = 0\nalert.suppress = 1\nalert.suppress.fields = alert_key\nalert.suppress.period = 24h\nalert.severity = 3\naction.email = 0\naction.script = 0\naction.webhook = 0\n'
++ spl=(ROOT/'detections/c05_permission_grants.spl').read_text()
++ stanza='['+NAME+']\n'+policy+'description = Successful permission grants outside the approved five-field baseline, including explicit parse errors.\nsearch = '+ ' '.join(spl.splitlines())+'\n'
++ src.write_text(src.read_text()+'\n'+stanza)
++ tail=spl[spl.index('| eval operation='):].replace('lookup entra_approved_grants.csv','lookup '+LOOKUP)
++ testconf='';names=[]
++ for suite in ['negative','sequence','multi','malformed']:
++  name='C05D2_'+suite;names.append(name)
++  q='| inputlookup c05d2_policy.csv | where suite="'+suite+'" | spath | search result=success '+tail
++  testconf+='\n['+name+']\n'+policy.replace('*/15 * * * *','* * * * *')+'search = '+' '.join(q.splitlines())+'\n'
++ fixture=[{'suite':'negative','_raw':json.dumps(event('sched-approved'))},{'suite':'sequence','_raw':json.dumps(event('sched-A',permission='Mail.Read'))},{'suite':'multi','_raw':json.dumps(event('sched-M1',True,'Mail.Read Files.Read'))},{'suite':'malformed','_raw':json.dumps(prop(event('sched-bad'),'ServicePrincipal.ObjectID','null'))}]
++ fp=Path('/opt/splunk/etc/apps/search/lookups/c05d2_policy.csv');assert not fp.exists()
++ with fp.open('w') as f:w=csv.DictWriter(f,fieldnames=['suite','_raw']);w.writeheader();w.writerows(fixture)
++ shutil.chown(fp,user='splunk',group='splunk');os.chmod(fp,0o640)
++ LIVE.write_text(old+'\n'+stanza+testconf)
++ d={'epoch':time.time(),'live_name':NAME,'test_names':names,'test_config':testconf,'live_stanza':stanza,'fixture':fixture,'unrelated_prefix_unchanged':LIVE.read_text().startswith(old),'btool':command(['/opt/splunk/bin/splunk','btool','savedsearches','list',NAME,'--debug']),'config_check':command(['/opt/splunk/bin/splunk','btool','check'])}
++ save('install.json',d)
++ st=ROOT.stat()
++ for p in [src,*OUT.iterdir()]:os.chown(p,st.st_uid,st.st_gid)
++ assert d['config_check']['returncode']==0,d['config_check']
++ print('INSTALLED_D2_AND_ISOLATED_TEST_STANZAS',flush=True)
++ r=command(['sudo','-n','-u','splunk','/opt/splunk/bin/splunk','_internal','call','/servicesNS/nobody/search/saved/searches/_reload','-method','POST']);save('reload.json',r);os.chown(OUT/'reload.json',st.st_uid,st.st_gid);print(r,flush=True)
++if __name__=='__main__':install()
+diff --git a/tools/c05_d2_package.py b/tools/c05_d2_package.py
+new file mode 100644
+index 0000000..5bbe77f
+--- /dev/null
++++ b/tools/c05_d2_package.py
+@@ -0,0 +1,20 @@
++from pathlib import Path
++import hashlib,json,subprocess,sys,tarfile
++ROOT=Path('/home/yuji/lab/entra-identity-monitoring-detection');OUT=ROOT/'docs/evidence/c05-detect-02'
++def git(*args):return subprocess.check_output(['git','-C',str(ROOT),*args],text=True)
++def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
++assert json.loads((OUT/'acceptance.json').read_text())['all_passed'],'Acceptance incomplete'
++if sys.argv[1]=='manifest':
++ (OUT/'source.diff').write_text(git('diff','--cached','e1f33d34deb9ec9cdba5a71d29ce8405ede5bdca','--','README.md','detections','lookups/entra_approved_grants.csv','tools','docs/c05-detect-02-validation.md'))
++ paths=[ROOT/'README.md',ROOT/'detections/savedsearches.conf',ROOT/'detections/c05_permission_grants.preview.spl',ROOT/'detections/c05_permission_grants.spl',ROOT/'lookups/entra_approved_grants.csv',ROOT/'docs/c05-detect-02-validation.md',*ROOT.glob('tools/c05_d2_*.py'),*[p for p in OUT.iterdir() if p.name!='sha256.json' and p.is_file()]]
++ manifest={str(p.relative_to(ROOT)):sha(p) for p in sorted(paths)};(OUT/'sha256.json').write_text(json.dumps(manifest,indent=2)+'\n');print('MANIFEST',len(manifest))
++elif sys.argv[1]=='export':
++ manifest=json.loads((OUT/'sha256.json').read_text());assert all(sha(ROOT/p)==h for p,h in manifest.items())
++ assert not git('status','--porcelain'),'working tree not clean'
++ export=Path('/tmp/c05-d2-export');export.mkdir(exist_ok=True)
++ head=git('rev-parse','HEAD').strip();binding={'task':'C05-DETECT-02 revision 1','branch':git('branch','--show-current').strip(),'base':'e1f33d34deb9ec9cdba5a71d29ce8405ede5bdca','head':head,'status':git('status','--short','--branch'),'publication':'local only; no push/PR/merge/tag','evidence':'implementation-captured, ready for independent review'}
++ (export/'binding.json').write_text(json.dumps(binding,indent=2)+'\n')
++ with tarfile.open(export/'c05-detect-02-evidence.tgz','w:gz') as tf:
++  for p in [*manifest,'docs/evidence/c05-detect-02/sha256.json']:tf.add(ROOT/p,arcname=p)
++  tf.add(export/'binding.json',arcname='binding.json')
++ print(json.dumps(binding));print('ARCHIVE_SHA256',sha(export/'c05-detect-02-evidence.tgz'))
+diff --git a/tools/c05_d2_prepare.py b/tools/c05_d2_prepare.py
+new file mode 100644
+index 0000000..7bf9dac
+--- /dev/null
++++ b/tools/c05_d2_prepare.py
+@@ -0,0 +1,27 @@
++from pathlib import Path
++import hashlib,json,subprocess,os
++root=Path.cwd(); out=root/'docs/evidence/c05-detect-02'
++def cmd(a):
++ p=subprocess.run(a,text=True,capture_output=True);return dict(command=a,returncode=p.returncode,stdout=p.stdout,stderr=p.stderr)
++def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
++assert cmd(['git','rev-parse','HEAD'])['stdout'].strip()=='e1f33d34deb9ec9cdba5a71d29ce8405ede5bdca'
++assert cmd(['git','branch','--show-current'])['stdout'].strip()=='feat/c05-permission-grants'
++if not (out/'before.json').exists():
++ d={'git':cmd(['git','status','--short','--branch']),'backup_stat':cmd(['sudo','-n','stat','-c','%a %U %G %s','/var/backups/c05-detect-02-20261016/before.tgz']),'backup_sha':cmd(['sudo','-n','sha256sum','/var/backups/c05-detect-02-20261016/before.tgz']),'backup_members':cmd(['sudo','-n','tar','-tzf','/var/backups/c05-detect-02-20261016/before.tgz']),'live_hashes':cmd(['sudo','-n','sha256sum','/opt/splunk/etc/apps/search/local/savedsearches.conf','/opt/splunk/etc/apps/search/metadata/local.meta','/opt/splunk/etc/apps/search/lookups/entra_known_apps.csv','/opt/splunk/etc/apps/search/lookups/entra_approved_grants.csv'])}
++ (out/'before.json').write_text(json.dumps(d,indent=2)+'\n')
++ for k in ['backup_stat','backup_sha','backup_members','live_hashes']:assert d[k]['returncode']==0,(k,d[k])
++source=root/'detections/c05_permission_grants.preview.spl';s=source.read_text()
++assert '| eval actor=' not in s, 'Preparation is one-time; candidate already generated'
++(out/'manual-preview.spl').write_text(s)
++s=s.replace('| eval missing_id=', '| eval id=trim(id)\n| spath path=initiatedBy.user.userPrincipalName output=actor_user\n| spath path=initiatedBy.app.displayName output=actor_app\n| eval actor=case(isnotnull(actor_user) AND actor_user!="null" AND actor_user!="",actor_user,isnotnull(actor_app) AND actor_app!="null" AND actor_app!="",actor_app,true(),"unknown")\n| eval missing_id=',1)
++s=s.replace('| spath input=target path=displayName output=resource_name','| eval resource_sp_id=trim(resource_sp_id)\n| eval resource_sp_id=if(resource_sp_id="" OR lower(resource_sp_id)="null",null(),resource_sp_id)\n| spath input=target path=displayName output=resource_name')
++s=s.replace('| eval property_value=if(property_value=', '| eval property_value=trim(property_value)\n| eval property_value=if(property_value=',1)
++s=s.replace('    values(operation) AS operation','    values(actor) AS actor\n    values(operation) AS operation',1)
++s=s[:s.rindex('| table ')]
++s+='| eval key_consent=mvjoin(mvsort(consent_type),";")\n'
++s+='| eval alert_key=sha256(len(event_id).":".event_id.len(client_sp_id).":".client_sp_id.len(resource_sp_id).":".resource_sp_id.len(grant_type).":".grant_type.len(permission).":".permission.len(key_consent).":".key_consent.len(parse_issue).":".parse_issue)\n'
++table='| table _time event_id correlationId actor client_sp_id resource_sp_id resource_name grant_type permission consent_type parse_issue baseline_status alert_key\n'
++source.write_text(s+table)
++prod=s.replace('earliest=0','earliest=-24h latest=now _index_earliest=-35m',1)+'| where baseline_status!="approved"\n'+table
++(root/'detections/c05_permission_grants.spl').write_text(prod)
++print('Prepared preview and production candidate; before evidence captured.')
+diff --git a/tools/c05_d2_schedule_sequence.py b/tools/c05_d2_schedule_sequence.py
+new file mode 100644
+index 0000000..6dd4734
+--- /dev/null
++++ b/tools/c05_d2_schedule_sequence.py
+@@ -0,0 +1,23 @@
++from c05_d2_capture import *
++def wait_for(predicate,label,seconds=210):
++ deadline=time.time()+seconds
++ while time.time()<deadline:
++  rows=records()
++  assert all(r.get('status')=='success' for r in rows), 'scheduler failure'
++  if predicate(rows):print(label,'observed',flush=True);return rows
++  time.sleep(10)
++ raise RuntimeError('Timed out: '+label)
++def seq(rows):return [r for r in rows if r.get('savedsearch_name')=='C05D2_sequence']
++wait_for(lambda rows:any(r.get('fired')=='1' for r in seq(rows)) and any(r.get('fired')=='0' and r.get('suppressed')=='1' for r in seq(rows)), 'first firing and repeat suppression')
++a=capture('repeat-A');assert all(v['returncode']==0 for v in a['alerts'].values())
++p=Path('/opt/splunk/etc/apps/search/lookups/c05d2_policy.csv')
++r=command(['sudo','-n','cat',str(p)]);assert r['returncode']==0
++rows=list(csv.DictReader(io.StringIO(r['stdout'])));assert not any('sched-B' in x['_raw'] for x in rows)
++rows.append({'suite':'sequence','_raw':json.dumps(event('sched-B',permission='Mail.Read'))})
++local=OUT/'policy-after-B.csv'
++with local.open('w') as f:w=csv.DictWriter(f,fieldnames=['suite','_raw']);w.writeheader();w.writerows(rows)
++r=command(['sudo','-n','install','-o','splunk','-g','splunk','-m','640',str(local),str(p)]);assert r['returncode']==0
++save('policy-data-change.json',{'epoch':time.time(),'command':r,'config_sha_before':a['live_config_sha'],'config_sha_after':command(['sudo','-n','sha256sum','/opt/splunk/etc/apps/search/local/savedsearches.conf'])})
++wait_for(lambda rows:any(r.get('result_count')=='2' and r.get('fired')=='1' and r.get('suppressed')=='1' for r in seq(rows)),'new event key fires while old key stays suppressed')
++capture('new-B')
++print('SCHEDULED_SEQUENCE_COMPLETE',flush=True)
+diff --git a/tools/c05_d2_validate.py b/tools/c05_d2_validate.py
+new file mode 100644
+index 0000000..9ae0708
+--- /dev/null
++++ b/tools/c05_d2_validate.py
+@@ -0,0 +1,65 @@
++from pathlib import Path
++import csv,io,json,subprocess,hashlib,time,copy
++ROOT=Path('/home/yuji/lab/entra-identity-monitoring-detection'); OUT=ROOT/'docs/evidence/c05-detect-02'
++LOOKUP='c05d2_fixture_baseline.csv'
++def query(s):
++ a=['sudo','-n','-u','splunk','/opt/splunk/bin/splunk','search',s,'-output','csv','-maxout','0'];p=subprocess.run(a,text=True,capture_output=True,timeout=120)
++ return {'command':a,'returncode':p.returncode,'stdout':p.stdout,'stderr':p.stderr,'rows':list(csv.DictReader(io.StringIO(p.stdout))) if p.returncode==0 else []}
++def save(n,d): (OUT/n).write_text(json.dumps(d,indent=2)+'\n')
++def event(name,delegated=False,permission=None):
++ props=[{'displayName':'ServicePrincipal.ObjectID','newValue':'"fixture-client"'}]
++ if delegated:props += [{'displayName':'DelegatedPermissionGrant.Scope','newValue':json.dumps(permission or 'User.Read')},{'displayName':'DelegatedPermissionGrant.ConsentType','newValue':'"AllPrincipals"'}]
++ else: props += [{'displayName':'AppRole.Id','newValue':'"fixture-role"'},{'displayName':'AppRole.Value','newValue':json.dumps(permission or 'AuditLog.Read.All')}]
++ return {'id':name,'result':'success','activityDisplayName':'Add delegated permission grant' if delegated else 'Add app role assignment to service principal','correlationId':'shared-correlation','initiatedBy':{'user':{'userPrincipalName':'analyst@example.invalid'}},'targetResources':[{'id':'fixture-resource','displayName':'Fixture API','modifiedProperties':props},{'id':'secondary','displayName':'Secondary context','modifiedProperties':[]}]}
++def prop(e,n,v):
++ for p in e['targetResources'][0]['modifiedProperties']:
++  if p['displayName']==n:p['newValue']=v
++ return e
++def run():
++ baseline='client_sp_id,resource_sp_id,grant_type,permission,consent_type\nfixture-client,fixture-resource,application,AuditLog.Read.All,not_applicable\nfixture-client,fixture-resource,application,Directory.Read.All,not_applicable\nfixture-client,fixture-resource,delegated,User.Read,AllPrincipals\n'
++ bp=OUT/LOOKUP;bp.write_text(baseline)
++ subprocess.run(['sudo','-n','install','-o','splunk','-g','splunk','-m','640',str(bp),'/opt/splunk/etc/apps/search/lookups/'+LOOKUP],check=True)
++ s=(ROOT/'detections/c05_permission_grants.preview.spl').read_text();tail=s[s.index('| eval operation='):].replace('lookup entra_approved_grants.csv','lookup '+LOOKUP)
++ cases=[]
++ def add(n,events,expected):cases.append({'name':n,'events':events,'expected':sorted(expected)})
++ ok=lambda p:('approved','none',p)
++ bad=lambda p:('outside_baseline','none',p)
++ err=lambda why,p:('parse_error',why,p)
++ add('approved_application',[event('a')],[ok('AuditLog.Read.All')])
++ add('approved_directory',[event('b',permission='Directory.Read.All')],[ok('Directory.Read.All')])
++ add('approved_delegated',[event('c',True)],[ok('User.Read')])
++ add('new_client',[prop(event('d'),'ServicePrincipal.ObjectID','"other-client"')],[bad('AuditLog.Read.All')])
++ e=event('e');e['targetResources'][0]['id']='other-resource';add('new_resource',[e],[bad('AuditLog.Read.All')])
++ add('new_permission',[event('f',permission='Mail.Read')],[bad('Mail.Read')])
++ add('wrong_grant_type',[event('g',True,'AuditLog.Read.All')],[bad('AuditLog.Read.All')])
++ add('wrong_consent',[prop(event('h',True),'DelegatedPermissionGrant.ConsentType','"Principal"')],[bad('User.Read')])
++ add('mixed_scopes',[event('i',True,'User.Read   Mail.Read')],[ok('User.Read'),bad('Mail.Read')])
++ add('same_correlation',[event('j'),event('k',True,'Mail.Read')],[ok('AuditLog.Read.All'),bad('Mail.Read')])
++ for val,label in [('null','literal_null'),('', 'empty'),('   ','spaces')]:
++  add(label+'_client',[prop(event(label),'ServicePrincipal.ObjectID',val)],[err('missing_or_ambiguous_attribution','AuditLog.Read.All')])
++  e=event(label+'resource');e['targetResources'][0]['id']=val;add(label+'_resource',[e],[err('missing_or_ambiguous_attribution','AuditLog.Read.All')])
++ add('missing_app_permission',[prop(event('l'),'AppRole.Value','null')],[err('missing_permission','__missing__')])
++ add('missing_scope',[prop(event('m',True),'DelegatedPermissionGrant.Scope','null')],[err('missing_permission','__missing__')])
++ add('missing_consent',[prop(event('n',True),'DelegatedPermissionGrant.ConsentType','null')],[err('missing_consent_type','User.Read')])
++ e=event('o',True);e['targetResources'][0]['modifiedProperties'].append({'displayName':'DelegatedPermissionGrant.ConsentType','newValue':'"Principal"'});add('conflicting_consent',[e],[err('ambiguous_consent_type','User.Read')])
++ e=event('p');e.pop('id');add('missing_id',[e],[err('missing_event_id','AuditLog.Read.All')])
++ e=event('q');e['targetResources']=[];add('empty_targets',[e],[err('missing_grant_properties','__missing__')])
++ e=event('r');e.pop('targetResources');add('missing_targets',[e],[err('missing_grant_properties','__missing__')])
++ e=event('s');e['targetResources']=[{'id':'fixture-resource','modifiedProperties':[]}];add('missing_properties',[e],[err('missing_grant_properties','__missing__')])
++ e=event('t');e['result']='failure';add('failed_operation',[e],[])
++ e=event('u');e['activityDisplayName']='Consent to application';add('context_only',[e],[])
++ e=event('v');e['activityDisplayName']+=' ';add('trailing_operation_space',[e],[ok('AuditLog.Read.All')])
++ e=event('w');e['initiatedBy']={'user':{'userPrincipalName':'null'},'app':{'displayName':'Fixture automation'}};add('app_actor',[e],[ok('AuditLog.Read.All')])
++ add('empty_results',[],[])
++ for c in cases:
++  n=len(c['events']);q='| makeresults count='+str(max(n,1))+' | streamstats count AS fixture_number '
++  if n:q+='| eval _raw=case('+','.join('fixture_number='+str(i+1)+','+json.dumps(json.dumps(e,separators=(',',':'))) for i,e in enumerate(c['events']))+') | spath | search result=success '
++  else:q+='| where 1=0 '
++  q+=tail;c['execution']=query(q)
++  c['actual']=sorted((r.get('baseline_status',''),r.get('parse_issue',''),r.get('permission','')) for r in c['execution']['rows'])
++  c['passed']=c['execution']['returncode']==0 and c['actual']==c['expected'] and all(len(r.get('alert_key',''))==64 for r in c['execution']['rows'])
++  if c['name']=='app_actor':c['passed']=c['passed'] and c['execution']['rows'][0].get('actor')=='Fixture automation'
++  print(c['name'],c['passed'],c['actual'],flush=True);save('pipeline.json',{'source_sha256':hashlib.sha256(s.encode()).hexdigest(),'cases':cases,'all_passed':all(x.get('passed',False) for x in cases)})
++ print('TOTAL',sum(c['passed'] for c in cases),'/',len(cases),flush=True)
++ assert all(c['passed'] for c in cases),'Required fixture failed; do not deploy'
++if __name__=='__main__':run()

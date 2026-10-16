@@ -1,0 +1,70 @@
+index=entra_id sourcetype=entra:audit earliest=-24h latest=now _index_earliest=-35m result=success
+(activityDisplayName="*app role assignment to service principal*" OR activityDisplayName="*delegated permission grant*")
+| eval operation=trim(activityDisplayName)
+| where operation IN ("Add app role assignment to service principal","Add delegated permission grant")
+| eval id=trim(id)
+| spath path=initiatedBy.user.userPrincipalName output=actor_user
+| spath path=initiatedBy.app.displayName output=actor_app
+| eval actor=case(isnotnull(actor_user) AND actor_user!="null" AND actor_user!="",actor_user,isnotnull(actor_app) AND actor_app!="null" AND actor_app!="",actor_app,true(),"unknown")
+| eval missing_id=if(isnull(id) OR id="" OR id="null",1,0)
+| eval event_id=if(missing_id=1,"missing:".sha256(_raw),id)
+| spath path=targetResources{} output=target
+| eval target=coalesce(target,"{}")
+| mvexpand target
+| eval target_key=sha256(target)
+| spath input=target path=id output=resource_sp_id
+| eval resource_sp_id=trim(resource_sp_id)
+| eval resource_sp_id=if(resource_sp_id="" OR lower(resource_sp_id)="null",null(),resource_sp_id)
+| spath input=target path=displayName output=resource_name
+| spath input=target path=modifiedProperties{} output=property
+| eval property=coalesce(property,"{}")
+| mvexpand property
+| spath input=property path=displayName output=property_name
+| spath input=property path=newValue output=new_value
+| eval property_value=trim(trim(new_value),"\"")
+| eval property_value=trim(property_value)
+| eval property_value=if(property_value="" OR property_value="null",null(),property_value)
+| eval grant_marker=if(property_name IN ("AppRole.Id","AppRole.Value","DelegatedPermissionGrant.Scope","DelegatedPermissionGrant.ConsentType"),1,0)
+| stats
+    earliest(_time) AS _time
+    values(actor) AS actor
+    values(operation) AS operation
+    values(correlationId) AS correlationId
+    max(missing_id) AS missing_id
+    max(grant_marker) AS grant_marker
+    values(resource_sp_id) AS resource_sp_id
+    values(resource_name) AS resource_name
+    values(eval(if(property_name="ServicePrincipal.ObjectID",property_value,null()))) AS client_sp_id
+    values(eval(if(property_name="AppRole.Value",property_value,null()))) AS app_permissions
+    values(eval(if(property_name="DelegatedPermissionGrant.Scope",property_value,null()))) AS delegated_scopes
+    values(eval(if(property_name="DelegatedPermissionGrant.ConsentType",property_value,null()))) AS consent_type
+  BY event_id target_key
+| eventstats max(grant_marker) AS event_has_grant BY event_id
+| where grant_marker=1 OR event_has_grant=0
+| eval ambiguous=if(coalesce(mvcount(client_sp_id),0)!=1 OR coalesce(mvcount(resource_sp_id),0)!=1 OR coalesce(mvcount(operation),0)!=1,1,0)
+| eval client_sp_id=lower(coalesce(mvindex(client_sp_id,0),"__missing__"))
+| eval resource_sp_id=lower(coalesce(mvindex(resource_sp_id,0),"__missing__"))
+| eval grant_type=if(operation="Add delegated permission grant","delegated","application")
+| eval permission=if(grant_type="application",app_permissions,split(replace(trim(mvjoin(delegated_scopes," ")),"[[:space:]]+"," ")," "))
+| eval permission=coalesce(permission,"__missing__")
+| eval consent_type=if(grant_type="application","not_applicable",coalesce(consent_type,"__missing__"))
+| mvexpand permission
+| eval parse_issue=case(
+    missing_id=1,"missing_event_id",
+    event_has_grant=0,"missing_grant_properties",
+    ambiguous=1,"missing_or_ambiguous_attribution",
+    permission="__missing__" OR permission="","missing_permission",
+    grant_type="delegated" AND mvcount(consent_type)>1,"ambiguous_consent_type",
+    consent_type="__missing__","missing_consent_type",
+    true(),"none")
+| lookup entra_approved_grants.csv
+    client_sp_id resource_sp_id grant_type permission consent_type
+    OUTPUT permission AS matched_permission
+| eval baseline_status=case(
+    parse_issue!="none","parse_error",
+    isnotnull(matched_permission),"approved",
+    true(),"outside_baseline")
+| eval key_consent=mvjoin(mvsort(consent_type),";")
+| eval alert_key=sha256(len(event_id).":".event_id.len(client_sp_id).":".client_sp_id.len(resource_sp_id).":".resource_sp_id.len(grant_type).":".grant_type.len(permission).":".permission.len(key_consent).":".key_consent.len(parse_issue).":".parse_issue)
+| where baseline_status!="approved"
+| table _time event_id correlationId actor client_sp_id resource_sp_id resource_name grant_type permission consent_type parse_issue baseline_status alert_key

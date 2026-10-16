@@ -77,3 +77,7 @@ Screenshots have the account email and source IP redacted.
 ## Alert configuration repair (C05-ALERTS-01)
 
 The count trigger uses counttype/relation/quantity and per-result mode for 24-hour correlationId suppression. Detection SPL and schedule are unchanged. See [validation and operational notes](docs/c05-alerts-01-validation.md) and [evidence](docs/evidence/c05-alerts-01/).
+
+## Permission-grant detection (C05-DETECT-02)
+
+Detection 2 compares successful Entra app-role and delegated grants with an explicit five-field baseline. It separates delegated scopes, retains malformed events as parsing errors, and uses per-event/per-permission suppression with local-only alert tracking. See [validation and reproducibility](docs/c05-detect-02-validation.md), [production SPL](detections/c05_permission_grants.spl), and [acceptance evidence](docs/evidence/c05-detect-02/acceptance.json). This lab validation does not establish fresh tenant ingestion or complete the separately scoped Premium-dependent sign-in work.
