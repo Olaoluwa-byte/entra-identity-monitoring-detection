@@ -81,3 +81,8 @@ The count trigger uses counttype/relation/quantity and per-result mode for 24-ho
 ## Permission-grant detection (C05-DETECT-02)
 
 Detection 2 compares successful Entra app-role and delegated grants with an explicit five-field baseline. It separates delegated scopes, retains malformed events as parsing errors, and uses per-event/per-permission suppression with local-only alert tracking. See [validation and reproducibility](docs/c05-detect-02-validation.md), [production SPL](detections/c05_permission_grants.spl), and [acceptance evidence](docs/evidence/c05-detect-02/acceptance.json). This lab validation does not establish fresh tenant ingestion or complete the separately scoped Premium-dependent sign-in work.
+
+
+## Free-tier collector hardening (C05-COLLECT-01)
+
+Audit-only collection with 24-hour overlap, event-ID deduplication, bounded retries and durable checkpoints. Premium sign-in work is deferred. See docs/c05-collect-01-validation.md for tests and recovery limits. Deployed and validated; independent review pending. Live checks returned zero new records and do not establish fresh end-to-end ingestion.

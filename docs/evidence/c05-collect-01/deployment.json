@@ -1,0 +1,42 @@
+{
+  "start_epoch": 1792181006.6530654,
+  "candidate": "d711f1050b2e39aec68d6855b2d7ec0e4a4ecec9",
+  "runs": [
+    {
+      "number": 1,
+      "returncode": 0,
+      "service": "Result=success\nExecMainStatus=0\nActiveState=inactive\n",
+      "error": ""
+    },
+    {
+      "number": 2,
+      "returncode": 0,
+      "service": "Result=success\nExecMainStatus=0\nActiveState=inactive\n",
+      "error": ""
+    }
+  ],
+  "source_live_match": true,
+  "deployed": true,
+  "timer_restore_returncode": 0,
+  "collector_summaries": [
+    {
+      "checkpoint": "2026-10-05T01:36:16.511542Z",
+      "duplicates": 0,
+      "endpoint": "directoryaudits",
+      "overlap_hours": 24,
+      "pages": 1,
+      "received": 0,
+      "written": 0
+    },
+    {
+      "checkpoint": "2026-10-05T01:36:16.511542Z",
+      "duplicates": 0,
+      "endpoint": "directoryaudits",
+      "overlap_hours": 24,
+      "pages": 1,
+      "received": 0,
+      "written": 0
+    }
+  ],
+  "timer_after": "active"
+}
