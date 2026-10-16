@@ -73,3 +73,7 @@ Screenshots have the account email and source IP redacted.
 | Final detection: create-time event | ![final row](docs/02-detection-final-row.png) |
 | Cleanup: Delete application event (next detection candidate) | ![delete event](docs/03-delete-application-event.png) |
 | Scheduled alert running every 15 min | ![scheduler](docs/04-scheduler-success.png) |
+
+## Alert configuration repair (C05-ALERTS-01)
+
+The count trigger uses counttype/relation/quantity and per-result mode for 24-hour correlationId suppression. Detection SPL and schedule are unchanged. See [validation and operational notes](docs/c05-alerts-01-validation.md) and [evidence](docs/evidence/c05-alerts-01/).

@@ -1,0 +1,43 @@
+{
+  "branch": {
+    "command": [
+      "git",
+      "branch",
+      "--show-current"
+    ],
+    "returncode": 0,
+    "stdout": "fix/c05-alert-trigger\n",
+    "stderr": ""
+  },
+  "base_head": {
+    "command": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "returncode": 0,
+    "stdout": "9e7d5e1d7c5bf3598984b8d69b58ea23e548a4ee\n",
+    "stderr": ""
+  },
+  "status_before_commit": {
+    "command": [
+      "git",
+      "status",
+      "--short"
+    ],
+    "returncode": 0,
+    "stdout": " M README.md\n M detections/savedsearches.conf\n?? docs/c05-alerts-01-validation.md\n?? docs/evidence/\n?? tools/\n",
+    "stderr": ""
+  },
+  "origin": {
+    "command": [
+      "git",
+      "remote",
+      "get-url",
+      "origin"
+    ],
+    "returncode": 0,
+    "stdout": "https://github.com/Olaoluwa-byte/entra-identity-monitoring-detection.git\n",
+    "stderr": ""
+  }
+}

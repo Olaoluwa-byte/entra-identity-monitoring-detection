@@ -1,0 +1,96 @@
+{
+  "epoch": 1792171480.9885225,
+  "calls": {
+    "empty": {
+      "command": [
+        "sudo",
+        "-n",
+        "-u",
+        "splunk",
+        "/opt/splunk/bin/splunk",
+        "_internal",
+        "call",
+        "/servicesNS/nobody/c05_validation_20261016/saved/searches/C05V_empty",
+        "-method",
+        "POST",
+        "-post:is_scheduled",
+        "0"
+      ],
+      "returncode": 0,
+      "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+      "response_sha256": "869f1acc6a994ff2de8cfc5cd160aed2093f35ff59edb3d9269476fe5990d26d",
+      "http_status": "200"
+    },
+    "sequence": {
+      "command": [
+        "sudo",
+        "-n",
+        "-u",
+        "splunk",
+        "/opt/splunk/bin/splunk",
+        "_internal",
+        "call",
+        "/servicesNS/nobody/c05_validation_20261016/saved/searches/C05V_sequence",
+        "-method",
+        "POST",
+        "-post:is_scheduled",
+        "0"
+      ],
+      "returncode": 0,
+      "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+      "response_sha256": "27cd34667e9be63f9b51af64863faf49ca6453089222cc51e548644e75e3dc12",
+      "http_status": "200"
+    },
+    "multi": {
+      "command": [
+        "sudo",
+        "-n",
+        "-u",
+        "splunk",
+        "/opt/splunk/bin/splunk",
+        "_internal",
+        "call",
+        "/servicesNS/nobody/c05_validation_20261016/saved/searches/C05V_multi",
+        "-method",
+        "POST",
+        "-post:is_scheduled",
+        "0"
+      ],
+      "returncode": 0,
+      "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+      "response_sha256": "f3753bf588e54d517654ebf64e55a56348308a532209a5abd2123f7714286ff5",
+      "http_status": "200"
+    }
+  },
+  "effective": {
+    "command": [
+      "sudo",
+      "-n",
+      "-u",
+      "splunk",
+      "/opt/splunk/bin/splunk",
+      "search",
+      "| rest /servicesNS/-/c05_validation_20261016/saved/searches | search title=\"C05V_*\" | table title is_scheduled",
+      "-output",
+      "csv"
+    ],
+    "returncode": 0,
+    "stdout": "title,\"is_scheduled\"\n\"C05V_empty\",0\n\"C05V_multi\",0\n\"C05V_sequence\",0\n",
+    "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+    "rows": [
+      {
+        "title": "C05V_empty",
+        "is_scheduled": "0"
+      },
+      {
+        "title": "C05V_multi",
+        "is_scheduled": "0"
+      },
+      {
+        "title": "C05V_sequence",
+        "is_scheduled": "0"
+      }
+    ]
+  },
+  "conf": "[C05V_empty]\nenableSched = 0\ncron_schedule = * * * * *\ndispatch.earliest_time = -5m\ndispatch.latest_time = now\ncounttype = number of events\nrelation = greater than\nquantity = 0\nalert.track = 1\nalert.digest_mode = 0\nalert.suppress = 1\nalert.suppress.fields = correlationId\nalert.suppress.period = 24h\naction.email = 0\naction.script = 0\naction.webhook = 0\nsearch = | inputlookup c05_policy.csv | where suite=\"empty\" | table correlationId\n\n[C05V_sequence]\nenableSched = 0\ncron_schedule = * * * * *\ndispatch.earliest_time = -5m\ndispatch.latest_time = now\ncounttype = number of events\nrelation = greater than\nquantity = 0\nalert.track = 1\nalert.digest_mode = 0\nalert.suppress = 1\nalert.suppress.fields = correlationId\nalert.suppress.period = 24h\naction.email = 0\naction.script = 0\naction.webhook = 0\nsearch = | inputlookup c05_policy.csv | where suite=\"sequence\" | table correlationId\n\n[C05V_multi]\nenableSched = 0\ncron_schedule = * * * * *\ndispatch.earliest_time = -5m\ndispatch.latest_time = now\ncounttype = number of events\nrelation = greater than\nquantity = 0\nalert.track = 1\nalert.digest_mode = 0\nalert.suppress = 1\nalert.suppress.fields = correlationId\nalert.suppress.period = 24h\naction.email = 0\naction.script = 0\naction.webhook = 0\nsearch = | inputlookup c05_policy.csv | where suite=\"multi\" | table correlationId\n\n"
+}

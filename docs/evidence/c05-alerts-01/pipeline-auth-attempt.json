@@ -1,0 +1,334 @@
+{
+  "cases": [
+    {
+      "case": "approved",
+      "expected": 0,
+      "fixture": {
+        "_time": "1792171212",
+        "result": "success",
+        "activityDisplayName": "Update application - Certificates and secrets management ",
+        "initiatedBy.user.userPrincipalName": "approved@example.invalid",
+        "initiatedBy.app.displayName": "null",
+        "targetResources{}.displayName": "Fixture App",
+        "targetResources{}.id": "fixture-approved",
+        "targetResources{}.modifiedProperties{}.newValue": "KeyType=Password",
+        "initiatedBy.user.ipAddress": "192.0.2.10",
+        "correlationId": "approved"
+      },
+      "execution": {
+        "command": [
+          "sudo",
+          "-n",
+          "-u",
+          "splunk",
+          "/opt/splunk/bin/splunk",
+          "search",
+          "| inputlookup c05_events.csv | search result=success activityDisplayName=\"*Certificates and secrets management*\" correlationId=\"approved\" | eval upn='initiatedBy.user.userPrincipalName', appname='initiatedBy.app.displayName'  | eval actor=case(isnotnull(upn) AND upn!=\"null\", upn, isnotnull(appname) AND appname!=\"null\", appname, true(), \"unknown\")  | eval target_app=mvindex('targetResources{}.displayName',0), target_id=mvindex('targetResources{}.id',0), operation=trim(activityDisplayName), src_ip='initiatedBy.user.ipAddress'  | rex field=\"targetResources{}.modifiedProperties{}.newValue\" \"KeyType=(?<key_type>\\w+)\"  | eval key_type=coalesce(key_type,\"not logged\"), cred_context=if(like(operation,\"Create application%\"),\"added at app creation\",\"added to existing app\")  | lookup c05_baseline.csv target_id OUTPUT approved_actor  | where isnull(approved_actor) OR approved_actor!=actor  | stats earliest(_time) as _time values(operation) as operation values(key_type) as key_type values(cred_context) as cred_context values(src_ip) as src_ip by correlationId actor target_app target_id",
+          "-output",
+          "csv"
+        ],
+        "returncode": -2,
+        "stdout": "",
+        "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+        "rows": []
+      },
+      "actual": 0,
+      "passed": false
+    },
+    {
+      "case": "unknown_update",
+      "expected": 1,
+      "fixture": {
+        "_time": "1792171212",
+        "result": "success",
+        "activityDisplayName": "Update application - Certificates and secrets management ",
+        "initiatedBy.user.userPrincipalName": "approved@example.invalid",
+        "initiatedBy.app.displayName": "null",
+        "targetResources{}.displayName": "Fixture App",
+        "targetResources{}.id": "fixture-unknown",
+        "targetResources{}.modifiedProperties{}.newValue": "KeyType=Password",
+        "initiatedBy.user.ipAddress": "192.0.2.10",
+        "correlationId": "unknown_update"
+      },
+      "execution": {
+        "command": [
+          "sudo",
+          "-n",
+          "-u",
+          "splunk",
+          "/opt/splunk/bin/splunk",
+          "search",
+          "| inputlookup c05_events.csv | search result=success activityDisplayName=\"*Certificates and secrets management*\" correlationId=\"unknown_update\" | eval upn='initiatedBy.user.userPrincipalName', appname='initiatedBy.app.displayName'  | eval actor=case(isnotnull(upn) AND upn!=\"null\", upn, isnotnull(appname) AND appname!=\"null\", appname, true(), \"unknown\")  | eval target_app=mvindex('targetResources{}.displayName',0), target_id=mvindex('targetResources{}.id',0), operation=trim(activityDisplayName), src_ip='initiatedBy.user.ipAddress'  | rex field=\"targetResources{}.modifiedProperties{}.newValue\" \"KeyType=(?<key_type>\\w+)\"  | eval key_type=coalesce(key_type,\"not logged\"), cred_context=if(like(operation,\"Create application%\"),\"added at app creation\",\"added to existing app\")  | lookup c05_baseline.csv target_id OUTPUT approved_actor  | where isnull(approved_actor) OR approved_actor!=actor  | stats earliest(_time) as _time values(operation) as operation values(key_type) as key_type values(cred_context) as cred_context values(src_ip) as src_ip by correlationId actor target_app target_id",
+          "-output",
+          "csv"
+        ],
+        "returncode": -2,
+        "stdout": "",
+        "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+        "rows": []
+      },
+      "actual": 0,
+      "passed": false
+    },
+    {
+      "case": "wrong_actor",
+      "expected": 1,
+      "fixture": {
+        "_time": "1792171212",
+        "result": "success",
+        "activityDisplayName": "Update application - Certificates and secrets management ",
+        "initiatedBy.user.userPrincipalName": "rogue@example.invalid",
+        "initiatedBy.app.displayName": "null",
+        "targetResources{}.displayName": "Fixture App",
+        "targetResources{}.id": "fixture-approved",
+        "targetResources{}.modifiedProperties{}.newValue": "KeyType=Password",
+        "initiatedBy.user.ipAddress": "192.0.2.10",
+        "correlationId": "wrong_actor"
+      },
+      "execution": {
+        "command": [
+          "sudo",
+          "-n",
+          "-u",
+          "splunk",
+          "/opt/splunk/bin/splunk",
+          "search",
+          "| inputlookup c05_events.csv | search result=success activityDisplayName=\"*Certificates and secrets management*\" correlationId=\"wrong_actor\" | eval upn='initiatedBy.user.userPrincipalName', appname='initiatedBy.app.displayName'  | eval actor=case(isnotnull(upn) AND upn!=\"null\", upn, isnotnull(appname) AND appname!=\"null\", appname, true(), \"unknown\")  | eval target_app=mvindex('targetResources{}.displayName',0), target_id=mvindex('targetResources{}.id',0), operation=trim(activityDisplayName), src_ip='initiatedBy.user.ipAddress'  | rex field=\"targetResources{}.modifiedProperties{}.newValue\" \"KeyType=(?<key_type>\\w+)\"  | eval key_type=coalesce(key_type,\"not logged\"), cred_context=if(like(operation,\"Create application%\"),\"added at app creation\",\"added to existing app\")  | lookup c05_baseline.csv target_id OUTPUT approved_actor  | where isnull(approved_actor) OR approved_actor!=actor  | stats earliest(_time) as _time values(operation) as operation values(key_type) as key_type values(cred_context) as cred_context values(src_ip) as src_ip by correlationId actor target_app target_id",
+          "-output",
+          "csv"
+        ],
+        "returncode": 0,
+        "stdout": "correlationId,actor,\"target_app\",\"target_id\",\"_time\",operation,\"key_type\",\"cred_context\",\"src_ip\"\n\"wrong_actor\",\"rogue@example.invalid\",\"Fixture App\",\"fixture-approved\",\"2026-10-16 13:20:12.000 EDT\",\"Update application - Certificates and secrets management\",Password,\"added to existing app\",\"192.0.2.10\"\n",
+        "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+        "rows": [
+          {
+            "correlationId": "wrong_actor",
+            "actor": "rogue@example.invalid",
+            "target_app": "Fixture App",
+            "target_id": "fixture-approved",
+            "_time": "2026-10-16 13:20:12.000 EDT",
+            "operation": "Update application - Certificates and secrets management",
+            "key_type": "Password",
+            "cred_context": "added to existing app",
+            "src_ip": "192.0.2.10"
+          }
+        ]
+      },
+      "actual": 1,
+      "passed": true
+    },
+    {
+      "case": "unknown_create",
+      "expected": 1,
+      "fixture": {
+        "_time": "1792171212",
+        "result": "success",
+        "activityDisplayName": "Create application - Certificates and secrets management ",
+        "initiatedBy.user.userPrincipalName": "approved@example.invalid",
+        "initiatedBy.app.displayName": "null",
+        "targetResources{}.displayName": "Fixture App",
+        "targetResources{}.id": "fixture-unknown",
+        "targetResources{}.modifiedProperties{}.newValue": "",
+        "initiatedBy.user.ipAddress": "192.0.2.10",
+        "correlationId": "unknown_create"
+      },
+      "execution": {
+        "command": [
+          "sudo",
+          "-n",
+          "-u",
+          "splunk",
+          "/opt/splunk/bin/splunk",
+          "search",
+          "| inputlookup c05_events.csv | search result=success activityDisplayName=\"*Certificates and secrets management*\" correlationId=\"unknown_create\" | eval upn='initiatedBy.user.userPrincipalName', appname='initiatedBy.app.displayName'  | eval actor=case(isnotnull(upn) AND upn!=\"null\", upn, isnotnull(appname) AND appname!=\"null\", appname, true(), \"unknown\")  | eval target_app=mvindex('targetResources{}.displayName',0), target_id=mvindex('targetResources{}.id',0), operation=trim(activityDisplayName), src_ip='initiatedBy.user.ipAddress'  | rex field=\"targetResources{}.modifiedProperties{}.newValue\" \"KeyType=(?<key_type>\\w+)\"  | eval key_type=coalesce(key_type,\"not logged\"), cred_context=if(like(operation,\"Create application%\"),\"added at app creation\",\"added to existing app\")  | lookup c05_baseline.csv target_id OUTPUT approved_actor  | where isnull(approved_actor) OR approved_actor!=actor  | stats earliest(_time) as _time values(operation) as operation values(key_type) as key_type values(cred_context) as cred_context values(src_ip) as src_ip by correlationId actor target_app target_id",
+          "-output",
+          "csv"
+        ],
+        "returncode": 0,
+        "stdout": "correlationId,actor,\"target_app\",\"target_id\",\"_time\",operation,\"key_type\",\"cred_context\",\"src_ip\"\n\"unknown_create\",\"approved@example.invalid\",\"Fixture App\",\"fixture-unknown\",\"2026-10-16 13:20:12.000 EDT\",\"Create application - Certificates and secrets management\",\"not logged\",\"added at app creation\",\"192.0.2.10\"\n",
+        "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+        "rows": [
+          {
+            "correlationId": "unknown_create",
+            "actor": "approved@example.invalid",
+            "target_app": "Fixture App",
+            "target_id": "fixture-unknown",
+            "_time": "2026-10-16 13:20:12.000 EDT",
+            "operation": "Create application - Certificates and secrets management",
+            "key_type": "not logged",
+            "cred_context": "added at app creation",
+            "src_ip": "192.0.2.10"
+          }
+        ]
+      },
+      "actual": 1,
+      "passed": true
+    },
+    {
+      "case": "app_actor_fallback",
+      "expected": 1,
+      "fixture": {
+        "_time": "1792171212",
+        "result": "success",
+        "activityDisplayName": "Update application - Certificates and secrets management ",
+        "initiatedBy.user.userPrincipalName": "null",
+        "initiatedBy.app.displayName": "Fixture Service",
+        "targetResources{}.displayName": "Fixture App",
+        "targetResources{}.id": "fixture-unknown",
+        "targetResources{}.modifiedProperties{}.newValue": "KeyType=Password",
+        "initiatedBy.user.ipAddress": "192.0.2.10",
+        "correlationId": "app_actor_fallback"
+      },
+      "execution": {
+        "command": [
+          "sudo",
+          "-n",
+          "-u",
+          "splunk",
+          "/opt/splunk/bin/splunk",
+          "search",
+          "| inputlookup c05_events.csv | search result=success activityDisplayName=\"*Certificates and secrets management*\" correlationId=\"app_actor_fallback\" | eval upn='initiatedBy.user.userPrincipalName', appname='initiatedBy.app.displayName'  | eval actor=case(isnotnull(upn) AND upn!=\"null\", upn, isnotnull(appname) AND appname!=\"null\", appname, true(), \"unknown\")  | eval target_app=mvindex('targetResources{}.displayName',0), target_id=mvindex('targetResources{}.id',0), operation=trim(activityDisplayName), src_ip='initiatedBy.user.ipAddress'  | rex field=\"targetResources{}.modifiedProperties{}.newValue\" \"KeyType=(?<key_type>\\w+)\"  | eval key_type=coalesce(key_type,\"not logged\"), cred_context=if(like(operation,\"Create application%\"),\"added at app creation\",\"added to existing app\")  | lookup c05_baseline.csv target_id OUTPUT approved_actor  | where isnull(approved_actor) OR approved_actor!=actor  | stats earliest(_time) as _time values(operation) as operation values(key_type) as key_type values(cred_context) as cred_context values(src_ip) as src_ip by correlationId actor target_app target_id",
+          "-output",
+          "csv"
+        ],
+        "returncode": 0,
+        "stdout": "correlationId,actor,\"target_app\",\"target_id\",\"_time\",operation,\"key_type\",\"cred_context\",\"src_ip\"\n\"app_actor_fallback\",\"Fixture Service\",\"Fixture App\",\"fixture-unknown\",\"2026-10-16 13:20:12.000 EDT\",\"Update application - Certificates and secrets management\",Password,\"added to existing app\",\"192.0.2.10\"\n",
+        "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+        "rows": [
+          {
+            "correlationId": "app_actor_fallback",
+            "actor": "Fixture Service",
+            "target_app": "Fixture App",
+            "target_id": "fixture-unknown",
+            "_time": "2026-10-16 13:20:12.000 EDT",
+            "operation": "Update application - Certificates and secrets management",
+            "key_type": "Password",
+            "cred_context": "added to existing app",
+            "src_ip": "192.0.2.10"
+          }
+        ]
+      },
+      "actual": 1,
+      "passed": true
+    },
+    {
+      "case": "unknown_actor",
+      "expected": 1,
+      "fixture": {
+        "_time": "1792171212",
+        "result": "success",
+        "activityDisplayName": "Update application - Certificates and secrets management ",
+        "initiatedBy.user.userPrincipalName": "null",
+        "initiatedBy.app.displayName": "null",
+        "targetResources{}.displayName": "Fixture App",
+        "targetResources{}.id": "fixture-unknown",
+        "targetResources{}.modifiedProperties{}.newValue": "KeyType=Password",
+        "initiatedBy.user.ipAddress": "192.0.2.10",
+        "correlationId": "unknown_actor"
+      },
+      "execution": {
+        "command": [
+          "sudo",
+          "-n",
+          "-u",
+          "splunk",
+          "/opt/splunk/bin/splunk",
+          "search",
+          "| inputlookup c05_events.csv | search result=success activityDisplayName=\"*Certificates and secrets management*\" correlationId=\"unknown_actor\" | eval upn='initiatedBy.user.userPrincipalName', appname='initiatedBy.app.displayName'  | eval actor=case(isnotnull(upn) AND upn!=\"null\", upn, isnotnull(appname) AND appname!=\"null\", appname, true(), \"unknown\")  | eval target_app=mvindex('targetResources{}.displayName',0), target_id=mvindex('targetResources{}.id',0), operation=trim(activityDisplayName), src_ip='initiatedBy.user.ipAddress'  | rex field=\"targetResources{}.modifiedProperties{}.newValue\" \"KeyType=(?<key_type>\\w+)\"  | eval key_type=coalesce(key_type,\"not logged\"), cred_context=if(like(operation,\"Create application%\"),\"added at app creation\",\"added to existing app\")  | lookup c05_baseline.csv target_id OUTPUT approved_actor  | where isnull(approved_actor) OR approved_actor!=actor  | stats earliest(_time) as _time values(operation) as operation values(key_type) as key_type values(cred_context) as cred_context values(src_ip) as src_ip by correlationId actor target_app target_id",
+          "-output",
+          "csv"
+        ],
+        "returncode": 0,
+        "stdout": "correlationId,actor,\"target_app\",\"target_id\",\"_time\",operation,\"key_type\",\"cred_context\",\"src_ip\"\n\"unknown_actor\",unknown,\"Fixture App\",\"fixture-unknown\",\"2026-10-16 13:20:12.000 EDT\",\"Update application - Certificates and secrets management\",Password,\"added to existing app\",\"192.0.2.10\"\n",
+        "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+        "rows": [
+          {
+            "correlationId": "unknown_actor",
+            "actor": "unknown",
+            "target_app": "Fixture App",
+            "target_id": "fixture-unknown",
+            "_time": "2026-10-16 13:20:12.000 EDT",
+            "operation": "Update application - Certificates and secrets management",
+            "key_type": "Password",
+            "cred_context": "added to existing app",
+            "src_ip": "192.0.2.10"
+          }
+        ]
+      },
+      "actual": 1,
+      "passed": true
+    },
+    {
+      "case": "failed_operation",
+      "expected": 0,
+      "fixture": {
+        "_time": "1792171212",
+        "result": "failure",
+        "activityDisplayName": "Update application - Certificates and secrets management ",
+        "initiatedBy.user.userPrincipalName": "approved@example.invalid",
+        "initiatedBy.app.displayName": "null",
+        "targetResources{}.displayName": "Fixture App",
+        "targetResources{}.id": "fixture-unknown",
+        "targetResources{}.modifiedProperties{}.newValue": "KeyType=Password",
+        "initiatedBy.user.ipAddress": "192.0.2.10",
+        "correlationId": "failed_operation"
+      },
+      "execution": {
+        "command": [
+          "sudo",
+          "-n",
+          "-u",
+          "splunk",
+          "/opt/splunk/bin/splunk",
+          "search",
+          "| inputlookup c05_events.csv | search result=success activityDisplayName=\"*Certificates and secrets management*\" correlationId=\"failed_operation\" | eval upn='initiatedBy.user.userPrincipalName', appname='initiatedBy.app.displayName'  | eval actor=case(isnotnull(upn) AND upn!=\"null\", upn, isnotnull(appname) AND appname!=\"null\", appname, true(), \"unknown\")  | eval target_app=mvindex('targetResources{}.displayName',0), target_id=mvindex('targetResources{}.id',0), operation=trim(activityDisplayName), src_ip='initiatedBy.user.ipAddress'  | rex field=\"targetResources{}.modifiedProperties{}.newValue\" \"KeyType=(?<key_type>\\w+)\"  | eval key_type=coalesce(key_type,\"not logged\"), cred_context=if(like(operation,\"Create application%\"),\"added at app creation\",\"added to existing app\")  | lookup c05_baseline.csv target_id OUTPUT approved_actor  | where isnull(approved_actor) OR approved_actor!=actor  | stats earliest(_time) as _time values(operation) as operation values(key_type) as key_type values(cred_context) as cred_context values(src_ip) as src_ip by correlationId actor target_app target_id",
+          "-output",
+          "csv"
+        ],
+        "returncode": 0,
+        "stdout": "",
+        "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+        "rows": []
+      },
+      "actual": 0,
+      "passed": true
+    },
+    {
+      "case": "unrelated_operation",
+      "expected": 0,
+      "fixture": {
+        "_time": "1792171212",
+        "result": "success",
+        "activityDisplayName": "Delete application",
+        "initiatedBy.user.userPrincipalName": "approved@example.invalid",
+        "initiatedBy.app.displayName": "null",
+        "targetResources{}.displayName": "Fixture App",
+        "targetResources{}.id": "fixture-unknown",
+        "targetResources{}.modifiedProperties{}.newValue": "KeyType=Password",
+        "initiatedBy.user.ipAddress": "192.0.2.10",
+        "correlationId": "unrelated_operation"
+      },
+      "execution": {
+        "command": [
+          "sudo",
+          "-n",
+          "-u",
+          "splunk",
+          "/opt/splunk/bin/splunk",
+          "search",
+          "| inputlookup c05_events.csv | search result=success activityDisplayName=\"*Certificates and secrets management*\" correlationId=\"unrelated_operation\" | eval upn='initiatedBy.user.userPrincipalName', appname='initiatedBy.app.displayName'  | eval actor=case(isnotnull(upn) AND upn!=\"null\", upn, isnotnull(appname) AND appname!=\"null\", appname, true(), \"unknown\")  | eval target_app=mvindex('targetResources{}.displayName',0), target_id=mvindex('targetResources{}.id',0), operation=trim(activityDisplayName), src_ip='initiatedBy.user.ipAddress'  | rex field=\"targetResources{}.modifiedProperties{}.newValue\" \"KeyType=(?<key_type>\\w+)\"  | eval key_type=coalesce(key_type,\"not logged\"), cred_context=if(like(operation,\"Create application%\"),\"added at app creation\",\"added to existing app\")  | lookup c05_baseline.csv target_id OUTPUT approved_actor  | where isnull(approved_actor) OR approved_actor!=actor  | stats earliest(_time) as _time values(operation) as operation values(key_type) as key_type values(cred_context) as cred_context values(src_ip) as src_ip by correlationId actor target_app target_id",
+          "-output",
+          "csv"
+        ],
+        "returncode": 0,
+        "stdout": "",
+        "stderr": "WARNING: Server Certificate Hostname Validation is disabled. Please see server.conf/[sslConfig]/cliVerifyServerName for details.\n",
+        "rows": []
+      },
+      "actual": 0,
+      "passed": true
+    }
+  ],
+  "all_passed": false,
+  "limitations": "Synthetic extracted fields; no fresh Entra ingestion or index-time selector validation."
+}

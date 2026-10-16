@@ -1,0 +1,22 @@
+diff --git a/detections/savedsearches.conf b/detections/savedsearches.conf
+index bfb6c41..ab4c6cf 100644
+--- a/detections/savedsearches.conf
++++ b/detections/savedsearches.conf
+@@ -4,10 +4,14 @@ enableSched = 1
+ cron_schedule = */15 * * * *
+ dispatch.earliest_time = -24h
+ dispatch.latest_time = now
+-alert_type = number of events
+-alert_comparator = greater than
+-alert_threshold = 0
++counttype = number of events
++relation = greater than
++quantity = 0
+ alert.track = 1
++alert.digest_mode = 0
++action.email = 0
++action.script = 0
++action.webhook = 0
+ alert.severity = 4
+ alert.suppress = 1
+ alert.suppress.fields = correlationId
